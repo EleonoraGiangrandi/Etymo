@@ -2,6 +2,7 @@ import { FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
 import { WordEntry, WORDS } from "@/constants/words";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
   Image,
@@ -95,9 +96,15 @@ export default function HomeScreen({
 
   const filteredWords = React.useMemo(() => {
     if (debouncedQuery.trim().length < 1) return [];
-    const q = debouncedQuery.toLowerCase();
+    const q = debouncedQuery.toLowerCase().trim();
     const list = wordsList || WORDS;
-    return list.filter((w) => w.word.toLowerCase().includes(q)).slice(0, 8);
+    const startsWith = list.filter((w) => w.word.toLowerCase().startsWith(q));
+    const contains = list.filter(
+      (w) =>
+        !w.word.toLowerCase().startsWith(q) &&
+        w.word.toLowerCase().includes(q),
+    );
+    return [...startsWith, ...contains].slice(0, 8);
   }, [debouncedQuery, wordsList]);
 
   const handleSearch = (query: string) => {
@@ -154,10 +161,8 @@ export default function HomeScreen({
             autoCapitalize="none"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => handleSearch("")}>
-              <Text style={[styles.clearIcon, { color: colors.textTertiary }]}>
-                ✕
-              </Text>
+            <TouchableOpacity onPress={() => handleSearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={16} color={colors.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
@@ -320,10 +325,14 @@ export default function HomeScreen({
           <Text style={[styles.statValue, { color: colors.primary }]}>
             {streak}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
-            Giorni di fila
-          </Text>
-          <Text style={styles.statEmoji}>🔥</Text>
+          <View style={styles.statLabelContainer}>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
+              Giorni di fila
+            </Text>
+          </View>
+          <View style={styles.statIconContainer}>
+            <Ionicons name="flame" size={20} color="#E55A2B" />
+          </View>
         </View>
         <View
           style={[
@@ -337,10 +346,14 @@ export default function HomeScreen({
           <Text style={[styles.statValue, { color: colors.primary }]}>
             {wordsDiscovered.length}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
-            Parole Scoperte
-          </Text>
-          <Text style={styles.statEmoji}>💡</Text>
+          <View style={styles.statLabelContainer}>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
+              Parole Scoperte
+            </Text>
+          </View>
+          <View style={styles.statIconContainer}>
+            <Feather name="book-open" size={18} color={colors.primary} />
+          </View>
         </View>
         <View
           style={[
@@ -354,10 +367,14 @@ export default function HomeScreen({
           <Text style={[styles.statValue, { color: colors.primary }]}>
             {maxCombo}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
-            Parole Corrette Consecutive
-          </Text>
-          <Text style={styles.statEmoji}>🏆</Text>
+          <View style={styles.statLabelContainer}>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
+              Parole Corrette Consecutive
+            </Text>
+          </View>
+          <View style={styles.statIconContainer}>
+            <Feather name="award" size={19} color={colors.goldDark} />
+          </View>
         </View>
       </View>
 
@@ -452,10 +469,12 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: 4,
     alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 116,
     borderWidth: 1,
-    gap: 2,
     ...SHADOWS.sm,
   },
   statValue: {
@@ -463,16 +482,30 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "800",
   },
+  statLabelContainer: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 2,
+  },
   statLabel: {
     fontFamily: FONTS.sans,
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
     textAlign: "center",
+    lineHeight: 12,
   },
-  statEmoji: {
-    fontSize: 16,
+  statIconContainer: {
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  fireStatIcon: {
+    width: 20,
+    height: 20,
   },
   ctaBtn: {
     borderRadius: RADIUS.full,

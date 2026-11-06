@@ -28,6 +28,7 @@ import RandomGame from "@/components/random-game";
 import OnboardingScreen from "@/components/onboarding-screen";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
+import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import * as Linking from "expo-linking";
@@ -48,32 +49,81 @@ function AppContent() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showBlitz, setShowBlitz] = useState(false);
   const [showRandomGame, setShowRandomGame] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<"archive" | "academy">("archive");
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   const { colors, isDark } = useTheme();
   const { session, user, loading: authLoading } = useAuth();
 
-  const lastNotificationResponse = useSafeLastNotificationResponse();
+  const {
+    wordsList,
+    currentWord,
+    phase,
+    selectedAnswer,
+    isCorrect,
+    streak,
+    sessionStreak,
+    maxCombo,
+    blitzRecord,
+    updateBlitzRecord,
+    randomRecord,
+    updateRandomRecord,
+    wordMastery,
+    updateWordMastery,
+    wordsDiscovered,
+    bookmarkedWords,
+    toggleBookmark,
+    handleAnswer,
+    handleNext,
+    showWordStory,
+    startSpecialQuiz,
+    startSrsReview,
+    resetGame,
+    resetAllData,
+    dailyWordsCount,
+    dailyBlitzCount,
+    incrementBlitzCount,
+    newBadge,
+    clearNewBadge,
+    exportBackup,
+    importBackup,
+  } = useGameState(user);
 
-  useEffect(() => {
-    checkOnboarding();
-  }, []);
+  const handleStartDaily = () => {
+    setIsPlaying(true);
+    resetGame(false);
+  };
 
+  const handleHome = () => {
+    setIsPlaying(false);
+    setShowBlitz(false);
+    resetGame(false);
+  };
 
+  const handleSelectWord = (word: WordEntry) => {
+    setIsPlaying(true);
+    showWordStory(word);
+  };
 
-  useEffect(() => {
-    if (
-      lastNotificationResponse &&
-      lastNotificationResponse.notification.request.content.data.screen ===
-        "game" &&
-      lastNotificationResponse.actionIdentifier ===
-        Notifications.DEFAULT_ACTION_IDENTIFIER
-    ) {
-      handleStartDaily();
+  const handleStartSpecial = (mode: "bookmarks" | "random" | "blitz" | "srs") => {
+    setLibraryTab("academy");
+    if (mode === "blitz") {
+      setShowBlitz(true);
+      return;
     }
-  }, [lastNotificationResponse]);
-
-
+    if (mode === "random") {
+      setShowRandomGame(true);
+      return;
+    }
+    setIsPlaying(true);
+    if (mode === "srs") {
+      startSrsReview();
+    } else if (mode === "bookmarks") {
+      startSpecialQuiz(bookmarkedWords);
+    } else {
+      resetGame(true);
+    }
+  };
 
   const checkOnboarding = async () => {
     try {
@@ -83,6 +133,46 @@ function AppContent() {
       setShowOnboarding(false);
     }
   };
+
+  const handleOnboardingComplete = async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_KEY, "true");
+      setShowOnboarding(false);
+    } catch {
+      setShowOnboarding(false);
+    }
+  };
+
+  const lastNotificationResponse = useSafeLastNotificationResponse();
+
+  useEffect(() => {
+    checkOnboarding();
+  }, []);
+
+  useEffect(() => {
+    if (
+      lastNotificationResponse &&
+      lastNotificationResponse.actionIdentifier ===
+        Notifications.DEFAULT_ACTION_IDENTIFIER
+    ) {
+      const data = lastNotificationResponse.notification.request.content.data;
+      if (data?.wordId) {
+        const found = wordsList.find(
+          (w) =>
+            w.id.toLowerCase() === String(data.wordId).toLowerCase() ||
+            w.word.toLowerCase() === String(data.wordId).toLowerCase(),
+        );
+        if (found) {
+          setIsPlaying(true);
+          showWordStory(found);
+          return;
+        }
+      }
+      if (data?.screen === "game") {
+        handleStartDaily();
+      }
+    }
+  }, [lastNotificationResponse, wordsList]);
 
   useEffect(() => {
     const backAction = () => {
@@ -111,46 +201,6 @@ function AppContent() {
     );
     return () => backHandler.remove();
   }, [showBlitz, showRandomGame, isPlaying, activeTab]);
-
-  const handleOnboardingComplete = async () => {
-    try {
-      await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-      setShowOnboarding(false);
-    } catch {
-      setShowOnboarding(false);
-    }
-  };
-
-  const {
-    wordsList,
-    currentWord,
-    phase,
-    selectedAnswer,
-    isCorrect,
-    streak,
-    sessionStreak,
-    maxCombo,
-    blitzRecord,
-    updateBlitzRecord,
-    randomRecord,
-    updateRandomRecord,
-    wordMastery,
-    wordsDiscovered,
-    bookmarkedWords,
-    toggleBookmark,
-    handleAnswer,
-    handleNext,
-    showWordStory,
-    startSpecialQuiz,
-    resetGame,
-    dailyWordsCount,
-    dailyBlitzCount,
-    incrementBlitzCount,
-    newBadge,
-    clearNewBadge,
-    exportBackup,
-    importBackup,
-  } = useGameState(user);
 
   useEffect(() => {
     if (Platform.OS === "android" && wordsList && wordsList.length > 0) {
@@ -218,60 +268,6 @@ function AppContent() {
     });
     return () => subscription.remove();
   }, []);
-
-  const handleStartDaily = () => {
-    setIsPlaying(true);
-    resetGame(false); // Always reset to ensure we are NOT in special mode
-  };
-
-  const handleHome = () => {
-    setIsPlaying(false);
-    setShowBlitz(false);
-    resetGame(false);
-  };
-
-  const handleSelectWord = (word: WordEntry) => {
-    setIsPlaying(true);
-    showWordStory(word);
-  };
-
-  const handleStartSpecial = (mode: "bookmarks" | "random" | "blitz") => {
-    if (mode === "blitz") {
-      setShowBlitz(true);
-      return;
-    }
-    if (mode === "random") {
-      setShowRandomGame(true);
-      return;
-    }
-    setIsPlaying(true);
-    if (mode === "bookmarks") {
-      startSpecialQuiz(bookmarkedWords);
-    } else {
-      resetGame(true);
-    }
-  };
-
-  // Gestione del pulsante "Indietro" nativo (Android)
-  useEffect(() => {
-    const handleBackButton = () => {
-      if (isPlaying) {
-        setIsPlaying(false);
-        resetGame(false);
-        return true; // Blocca l'azione di default (chiudere l'app) e torna alla mappa/schermata precedente
-      }
-      if (showRandomGame) {
-        setShowRandomGame(false);
-        return true;
-      }
-      return false;
-    };
-
-    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackButton);
-    return () => {
-      subscription.remove();
-    };
-  }, [isPlaying, showRandomGame]);
 
   const handleTabPress = (tab: "game" | "library" | "graph" | "profile") => {
     setActiveTab(tab);
@@ -352,6 +348,7 @@ function AppContent() {
           comboMultiplier={1}
           streak={sessionStreak}
           onAnswer={handleAnswer}
+          onExit={handleHome}
         />
       );
     }
@@ -374,8 +371,16 @@ function AppContent() {
           <LibraryScreen
             bookmarkedWords={bookmarkedWords}
             wordsDiscovered={wordsDiscovered}
+            wordsList={wordsList}
+            wordMastery={wordMastery}
+            blitzRecord={blitzRecord}
+            randomRecord={randomRecord}
             onSelectWord={handleSelectWord}
             onStartGame={handleStartSpecial}
+            toggleBookmark={toggleBookmark}
+            onUpdateMastery={updateWordMastery}
+            activeSubTab={libraryTab}
+            onSubTabChange={setLibraryTab}
           />
         );
       case "profile":
@@ -394,6 +399,7 @@ function AppContent() {
             wordsList={wordsList}
             onExportBackup={exportBackup}
             onImportBackup={importBackup}
+            onResetAllData={resetAllData}
           />
         );
       case "graph":
@@ -430,7 +436,7 @@ function AppContent() {
         {renderContent()}
       </View>
 
-      {session && (
+      {session && !showOnboarding && (
         <BottomNav activeTab={activeTab} onTabPress={handleTabPress} />
       )}
 
@@ -457,7 +463,15 @@ function AppContent() {
                 { backgroundColor: colors.gold + "20" },
               ]}
             >
-              <Text style={styles.badgeEmoji}>{newBadge?.icon}</Text>
+              {newBadge?.id === "novizio" ? (
+                <Feather name="award" size={40} color={colors.goldDark} />
+              ) : newBadge?.id === "archeologo" ? (
+                <Feather name="compass" size={40} color={colors.goldDark} />
+              ) : newBadge?.id === "guerriero" ? (
+                <Feather name="shield" size={40} color={colors.goldDark} />
+              ) : (
+                <Feather name="award" size={40} color={colors.goldDark} />
+              )}
             </View>
             <Text style={[styles.badgeTitle, { color: colors.primary }]}>
               Nuovo Traguardo!

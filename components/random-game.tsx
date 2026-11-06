@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { Confetti } from "./confetti";
+import { Feather, Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 
@@ -40,6 +41,7 @@ export default function RandomGame({
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
+  const hasFinishedRef = useRef(false);
   const scoreAnim = useRef(new Animated.Value(0)).current;
 
   const generateQuestion = useCallback(() => {
@@ -62,8 +64,8 @@ export default function RandomGame({
   }, []);
 
   useEffect(() => {
-    if (isGameOver && !isNewRecord) {
-      // Only check once when game ends
+    if (isGameOver && !hasFinishedRef.current) {
+      hasFinishedRef.current = true;
       const isRecord = score > highScore;
       if (isRecord) {
         setIsNewRecord(true);
@@ -121,9 +123,13 @@ export default function RandomGame({
     const hearts = [];
     for (let i = 1; i <= 3; i++) {
       hearts.push(
-        <Text key={i} style={styles.heart}>
-          {i <= lives ? "❤️" : "🖤"}
-        </Text>,
+        <Ionicons
+          key={i}
+          name={i <= lives ? "heart" : "heart-outline"}
+          size={20}
+          color={i <= lives ? "#E53935" : colors.textTertiary}
+          style={{ marginHorizontal: 2 }}
+        />
       );
     }
     return <View style={styles.heartsContainer}>{hearts}</View>;
@@ -157,7 +163,7 @@ export default function RandomGame({
 
           {isNewRecord && (
             <View style={styles.recordBadge}>
-              <Text style={styles.recordEmoji}>🏆</Text>
+              <Feather name="award" size={18} color={colors.goldDark} />
               <Text style={[styles.recordText, { color: colors.goldDark }]}>
                 NUOVO RECORD!
               </Text>
@@ -183,7 +189,16 @@ export default function RandomGame({
           <>
             {/* Top Bar with Lives (left) and Stats (right) */}
             <View style={styles.topBar}>
-              {renderHearts()}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <TouchableOpacity
+                  onPress={onClose}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <Text style={{ fontSize: 18, color: colors.textTertiary, fontWeight: "700" }}>✕</Text>
+                </TouchableOpacity>
+                {renderHearts()}
+              </View>
 
               <View style={styles.rightStats}>
                 <View
@@ -261,45 +276,35 @@ export default function RandomGame({
                 const isCorrectOption = index === currentWord.correctAnswer;
                 const wasCorrectAnswer = selectedOption === currentWord.correctAnswer;
 
-                let cardStyle: any[] = [
-                  styles.optionCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ];
-                let textStyle: any[] = [styles.optionText, { color: colors.primary }];
+                let backgroundColor = colors.surface;
+                let borderColor = colors.border;
+                let textColor = colors.primary;
 
                 if (showResult) {
                   if (isCorrectOption) {
-                    cardStyle.push({
-                      borderColor: "#4A7C59",
-                      backgroundColor: isDark
-                        ? "rgba(74,124,89,0.2)"
-                        : "rgba(74,124,89,0.1)",
-                    });
-                    textStyle.push({ color: isDark ? "#81C784" : "#2D4A35" });
+                    borderColor = "#4A7C59";
+                    backgroundColor = isDark ? "#1E3324" : "#EDF5EF";
+                    textColor = isDark ? "#81C784" : "#2D4A35";
                   } else if (isSelected && !wasCorrectAnswer) {
-                    cardStyle.push({
-                      borderColor: colors.error,
-                      backgroundColor: isDark
-                        ? "rgba(229,115,115,0.2)"
-                        : "rgba(139,48,48,0.1)",
-                    });
-                    textStyle.push({ color: isDark ? "#E57373" : "#521D1D" });
-                  } else {
-                    cardStyle.push(styles.disabledCard);
+                    borderColor = colors.error;
+                    backgroundColor = isDark ? "#3A1E1E" : "#FDEAEA";
+                    textColor = isDark ? "#E57373" : "#521D1D";
                   }
                 } else if (isSelected) {
-                  cardStyle.push({
-                    borderColor: colors.gold,
-                    backgroundColor: isDark
-                      ? "rgba(229,193,88,0.1)"
-                      : "rgba(212,175,55,0.05)",
-                  });
+                  borderColor = colors.gold;
+                  backgroundColor = isDark
+                    ? "rgba(229,193,88,0.1)"
+                    : "rgba(212,175,55,0.05)";
                 }
 
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={cardStyle}
+                    style={[
+                      styles.optionCard,
+                      { backgroundColor, borderColor },
+                      showResult && !isCorrectOption && !isSelected && styles.disabledCard,
+                    ]}
                     onPress={() => handleAnswer(index)}
                     disabled={showResult}
                     activeOpacity={0.7}
@@ -307,7 +312,7 @@ export default function RandomGame({
                     <Text style={[styles.optionLetter, { color: colors.goldDark }]}>
                       {String.fromCharCode(65 + index)}
                     </Text>
-                    <Text style={textStyle}>{option}</Text>
+                    <Text style={[styles.optionText, { color: textColor }]}>{option}</Text>
                     {showResult && isCorrectOption && (
                       <Text
                         style={[
@@ -449,12 +454,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     width: 24,
+    backgroundColor: "transparent",
   },
   optionText: {
     flex: 1,
     fontFamily: FONTS.sans,
     fontSize: 16,
     fontWeight: "600",
+    backgroundColor: "transparent",
   },
   disabledCard: {
     opacity: 0.6,
@@ -462,6 +469,7 @@ const styles = StyleSheet.create({
   resultIcon: {
     fontSize: 20,
     fontWeight: "800",
+    backgroundColor: "transparent",
   },
   decorationContainer: {
     position: "absolute",

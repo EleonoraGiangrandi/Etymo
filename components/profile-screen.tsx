@@ -2,12 +2,14 @@ import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
 import { WordEntry, WORDS } from "@/constants/words";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { formatStat } from "@/lib/format-utils";
 import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -38,6 +40,7 @@ type Props = {
   wordsList?: WordEntry[];
   onExportBackup?: () => Promise<string>;
   onImportBackup?: (json: string) => Promise<{ success: boolean; error?: string }>;
+  onResetAllData?: () => Promise<void>;
 };
 
 export default function ProfileScreen({
@@ -51,6 +54,7 @@ export default function ProfileScreen({
   wordsList,
   onExportBackup,
   onImportBackup,
+  onResetAllData,
 }: Props) {
   const totalWords = wordsList?.length || WORDS.length;
   const { colors, isDark, toggleTheme } = useTheme();
@@ -69,6 +73,7 @@ export default function ProfileScreen({
   // Backup Modal state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState("");
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   useEffect(() => {
     loadNotificationSettings();
@@ -225,9 +230,20 @@ export default function ProfileScreen({
           text: "Azzera Tutto",
           style: "destructive",
           onPress: async () => {
-            await AsyncStorage.clear();
-            await resetProfile();
-            Alert.alert("Completato", "Tutti i dati locali sono stati azzerati.");
+            setLoading(true);
+            try {
+              if (onResetAllData) {
+                await onResetAllData();
+              } else {
+                await AsyncStorage.clear();
+              }
+              await resetProfile();
+              Alert.alert("Completato", "Tutti i dati locali sono stati azzerati.");
+            } catch (err: any) {
+              Alert.alert("Errore", "Impossibile azzerare i dati: " + err.message);
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
@@ -265,7 +281,7 @@ export default function ProfileScreen({
             )}
           </View>
           <View style={[styles.editBadge, { backgroundColor: colors.gold }]}>
-            <Text style={styles.editBadgeIcon}>📷</Text>
+            <Feather name="camera" size={13} color="#322214" />
           </View>
         </TouchableOpacity>
 
@@ -334,9 +350,12 @@ export default function ProfileScreen({
         ]}
       >
         <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: colors.goldDark }]}>
-            {streak}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Ionicons name="flame" size={18} color="#E55A2B" />
+            <Text style={[styles.statValue, { color: colors.goldDark }]}>
+              {streak}
+            </Text>
+          </View>
           <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
             Streak
           </Text>
@@ -381,7 +400,12 @@ export default function ProfileScreen({
               },
             ]}
           >
-            <Text style={styles.badgeIcon}>🎓</Text>
+            <Feather
+              name="award"
+              size={26}
+              color={wordsDiscovered.length >= 3 ? colors.goldDark : colors.textTertiary}
+              style={{ marginBottom: 4 }}
+            />
             <Text style={[styles.badgeName, { color: colors.primary }]}>
               Novizio
             </Text>
@@ -399,7 +423,12 @@ export default function ProfileScreen({
               },
             ]}
           >
-            <Text style={styles.badgeIcon}>🏺</Text>
+            <Feather
+              name="compass"
+              size={26}
+              color={wordsDiscovered.length >= Math.floor(totalWords * 0.5) ? colors.goldDark : colors.textTertiary}
+              style={{ marginBottom: 4 }}
+            />
             <Text style={[styles.badgeName, { color: colors.primary }]}>
               Archeologo
             </Text>
@@ -417,7 +446,12 @@ export default function ProfileScreen({
               },
             ]}
           >
-            <Text style={styles.badgeIcon}>⚔️</Text>
+            <Feather
+              name="shield"
+              size={26}
+              color={wordsDiscovered.length >= Math.floor(totalWords * 0.8) ? colors.goldDark : colors.textTertiary}
+              style={{ marginBottom: 4 }}
+            />
             <Text style={[styles.badgeName, { color: colors.primary }]}>
               Guerriero
             </Text>
@@ -491,7 +525,18 @@ export default function ProfileScreen({
               <Text style={[styles.rowLabel, { color: colors.primary }]}>Rivedi Introduzione</Text>
               <Text style={[styles.rowSub, { color: colors.textTertiary }]}>Mostra di nuovo le schermate iniziali</Text>
             </View>
-            <Text style={{ fontSize: 16 }}>🚀</Text>
+            <Feather name="play-circle" size={18} color={colors.goldDark} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.row, { borderTopWidth: 1, borderColor: colors.borderLight }]}
+            onPress={() => setShowPrivacyModal(true)}
+          >
+            <View>
+              <Text style={[styles.rowLabel, { color: colors.primary }]}>Informativa Privacy & Termini</Text>
+              <Text style={[styles.rowSub, { color: colors.textTertiary }]}>100% Offline, rispetto e trasparenza dati</Text>
+            </View>
+            <Feather name="shield" size={18} color={colors.goldDark} />
           </TouchableOpacity>
         </View>
       </View>
@@ -513,7 +558,7 @@ export default function ProfileScreen({
                 Condividi o salva i tuoi progressi in formato JSON
               </Text>
             </View>
-            <Text style={{ fontSize: 18 }}>📤</Text>
+            <Feather name="upload" size={18} color={colors.goldDark} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -527,7 +572,7 @@ export default function ProfileScreen({
                 Ripristina i progressi da un testo JSON
               </Text>
             </View>
-            <Text style={{ fontSize: 18 }}>📥</Text>
+            <Feather name="download" size={18} color={colors.goldDark} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -541,7 +586,7 @@ export default function ProfileScreen({
                 Cancella progressi e parole scoperte da questo dispositivo
               </Text>
             </View>
-            <Text style={{ fontSize: 18 }}>🗑️</Text>
+            <Feather name="trash-2" size={18} color="#E53935" />
           </TouchableOpacity>
         </View>
       </View>
@@ -606,6 +651,96 @@ export default function ProfileScreen({
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Privacy Policy Modal */}
+      <Modal
+        visible={showPrivacyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          {/* Backdrop tap to close */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowPrivacyModal(false)}
+          />
+
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+                height: "82%",
+                maxHeight: "85%",
+              },
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.primary, flex: 1 }]}>
+                Informativa Privacy & Termini
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowPrivacyModal(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={[
+                  styles.modalCloseCircle,
+                  { backgroundColor: colors.background, borderColor: colors.borderLight },
+                ]}
+                accessibilityLabel="Chiudi informativa"
+              >
+                <Feather name="x" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              style={{ flex: 1, marginVertical: 10 }}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              nestedScrollEnabled={true}
+            >
+              <Text style={{ fontFamily: FONTS.sans, fontSize: 13, lineHeight: 22, color: colors.textSecondary }}>
+                <Text style={{ fontWeight: "700", color: colors.primary }}>1. Filosofia 100% Locale{"\n"}</Text>
+                Etymo non richiede registrazione ad account remoti né raccoglie credenziali personali. Tutti i tuoi progressi, streak, parole scoperte e preferiti sono memorizzati unicamente all'interno della memoria sicura del tuo smartphone.{"\n\n"}
+                <Text style={{ fontWeight: "700", color: colors.primary }}>2. Nessun Tracciamento o Vendita Dati{"\n"}</Text>
+                Non monitoriamo la tua attività e non vendiamo né cediamo dati personali a terze parti o inserzionisti. L'esperienza è concepita per essere pura, didattica e rispettosa della tua privacy.{"\n\n"}
+                <Text style={{ fontWeight: "700", color: colors.primary }}>3. Notifiche e Permessi{"\n"}</Text>
+                Le notifiche quotidiane per la "Parola del Giorno" sono gestite localmente dal tuo dispositivo e non inviano token di notifica all'esterno. La galleria foto è usata esclusivamente se scegli di caricare un avatar personalizzato, che resta sempre solo sul tuo telefono.{"\n\n"}
+                <Text style={{ fontWeight: "700", color: colors.primary }}>4. Esportazione e Cancellazione{"\n"}</Text>
+                Puoi esportare un backup JSON completo in qualsiasi momento oppure azzerare i tuoi dati con un solo tocco dalla sezione 'Dati e Backup'.{"\n\n"}
+                <Text style={{ fontWeight: "700", color: colors.primary }}>5. Termini di Servizio{"\n"}</Text>
+                Etymo è fornita per finalità educative e culturali. I testi e le note etimologiche sono curati a scopo divulgativo. Grazie per far parte di questa avventura linguistica!{"\n\n"}
+                <Text style={{ fontWeight: "700", color: colors.primary }}>6. Open Source & Contatti{"\n"}</Text>
+                Il codice open source è disponibile qui:{" "}
+                <Text
+                  style={{ color: colors.goldDark, textDecorationLine: "underline" }}
+                  onPress={() => Linking.openURL("https://github.com/EleonoraGiangrandi/Etymo.git").catch(() => {})}
+                >
+                  https://github.com/EleonoraGiangrandi/Etymo.git
+                </Text>
+                {"\n\n"}
+                Se vuoi dare un feedback, consigli ecc. questo è il contatto:{" "}
+                <Text
+                  style={{ color: colors.goldDark, textDecorationLine: "underline" }}
+                  onPress={() => Linking.openURL("mailto:app.breasy@gmail.com").catch(() => {})}
+                >
+                  app.breasy@gmail.com
+                </Text>
+              </Text>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.privacyCloseBtn, { backgroundColor: colors.gold }]}
+              onPress={() => setShowPrivacyModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.privacyCloseBtnText, { color: "#322214" }]}>Chiudi</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -819,6 +954,20 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     ...SHADOWS.lg,
   },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   modalTitle: {
     fontFamily: FONTS.serif,
     fontSize: 22,
@@ -853,6 +1002,21 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans,
     fontSize: 15,
     fontWeight: "700",
+  },
+  privacyCloseBtn: {
+    height: 44,
+    borderRadius: RADIUS.full,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    minWidth: 160,
+    paddingHorizontal: SPACING.xl,
+    marginTop: SPACING.sm,
+  },
+  privacyCloseBtnText: {
+    fontFamily: FONTS.sans,
+    fontSize: 15,
+    fontWeight: "800",
   },
   footer: {
     alignItems: "center",

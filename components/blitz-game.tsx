@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Confetti } from "./confetti";
+import { Feather } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 
@@ -32,7 +33,7 @@ export default function BlitzGame({
   const [pool, setPool] = useState<WordEntry[]>(() =>
     [...words].sort(() => 0.5 - Math.random()),
   );
-  const [timeLeft, setTimeLeft] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<{
@@ -44,6 +45,7 @@ export default function BlitzGame({
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
+  const hasFinishedRef = useRef(false);
   const timerAnim = useRef(new Animated.Value(1)).current;
   const scoreAnim = useRef(new Animated.Value(0)).current;
 
@@ -106,8 +108,8 @@ export default function BlitzGame({
   }, [isGameOver]);
 
   useEffect(() => {
-    if (isGameOver && !isNewRecord) {
-      // Only check once when game ends
+    if (isGameOver && !hasFinishedRef.current) {
+      hasFinishedRef.current = true;
       const isRecord = score > highScore;
       if (isRecord) {
         setIsNewRecord(true);
@@ -181,7 +183,7 @@ export default function BlitzGame({
 
           {isNewRecord && (
             <View style={styles.recordBadge}>
-              <Text style={styles.recordEmoji}>🏆</Text>
+              <Feather name="award" size={18} color={colors.goldDark} />
               <Text style={[styles.recordText, { color: colors.goldDark }]}>
                 NUOVO RECORD!
               </Text>
@@ -203,6 +205,13 @@ export default function BlitzGame({
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerCloseBtn}
+          onPress={onClose}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Text style={[styles.headerCloseText, { color: colors.textTertiary }]}>✕</Text>
+        </TouchableOpacity>
         <View style={styles.stat}>
           <Text style={[styles.statLabel, { color: colors.textTertiary }]}>
             TEMPO
@@ -262,34 +271,62 @@ export default function BlitzGame({
         {currentQuestion?.options.map((option, index) => {
           const isSelected = selectedOption === index;
           const isCorrect = index === currentQuestion.correct;
-          
+          const showResult = selectedOption !== null;
+
           let backgroundColor = colors.surface;
           let borderColor = colors.border;
-          
-          if (isSelected) {
-            borderColor = isCorrect ? '#4CAF50' : '#F44336';
-          } else if (selectedOption !== null && isCorrect) {
-            // Highlight correct one even if not selected
-            borderColor = '#4CAF50';
+          let textColor = colors.primary;
+
+          if (showResult) {
+            if (isCorrect) {
+              borderColor = "#4A7C59";
+              backgroundColor = isDark ? "#1E3324" : "#EDF5EF";
+              textColor = isDark ? "#81C784" : "#2D4A35";
+            } else if (isSelected && !isCorrect) {
+              borderColor = colors.error;
+              backgroundColor = isDark ? "#3A1E1E" : "#FDEAEA";
+              textColor = isDark ? "#E57373" : "#521D1D";
+            }
           }
 
           return (
             <TouchableOpacity
-              key={option.id}
+              key={`${option.id}-${index}`}
               style={[
-                styles.optionBtn,
-                { 
-                  backgroundColor,
-                  borderColor 
-                },
+                styles.optionCard,
+                { backgroundColor, borderColor },
+                showResult && !isCorrect && !isSelected && styles.disabledCard,
               ]}
               onPress={() => handleAnswer(index)}
               disabled={selectedOption !== null}
-              activeOpacity={1}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.optionText, { color: isSelected ? borderColor : colors.primary }]}>
+              <Text style={[styles.optionLetter, { color: colors.goldDark }]}>
+                {String.fromCharCode(65 + index)}
+              </Text>
+              <Text style={[styles.optionText, { color: textColor }]}>
                 {option.word}
               </Text>
+              {showResult && isCorrect && (
+                <Text
+                  style={[
+                    styles.resultIcon,
+                    { color: isDark ? "#81C784" : "#4A7C59" },
+                  ]}
+                >
+                  ✓
+                </Text>
+              )}
+              {showResult && isSelected && !isCorrect && (
+                <Text
+                  style={[
+                    styles.resultIcon,
+                    { color: isDark ? "#E57373" : "#8B3030" },
+                  ]}
+                >
+                  ✕
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -308,10 +345,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     width: "100%",
     position: "absolute",
-    top: 60,
+    top: 50,
     paddingHorizontal: SPACING.xl,
+  },
+  headerCloseBtn: {
+    padding: 6,
+    borderRadius: RADIUS.full,
+  },
+  headerCloseText: {
+    fontSize: 20,
+    fontWeight: "700",
   },
   stat: {
     alignItems: "center",
@@ -349,22 +395,37 @@ const styles = StyleSheet.create({
     width: "100%",
     gap: 12,
   },
-  optionBtn: {
-    padding: 18,
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
+  optionCard: {
+    flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    gap: SPACING.md,
+    overflow: "hidden",
+  },
+  optionLetter: {
+    fontFamily: FONTS.sans,
+    fontSize: 16,
+    fontWeight: "700",
+    width: 24,
     backgroundColor: "transparent",
-    ...SHADOWS.sm,
-    // @ts-ignore
-    outlineWidth: 0,
-    // @ts-ignore
-    userSelect: "none",
   },
   optionText: {
-    fontFamily: FONTS.sans,
+    flex: 1,
+    fontFamily: FONTS.serif,
+    fontSize: 17,
+    fontWeight: "700",
+    backgroundColor: "transparent",
+  },
+  resultIcon: {
     fontSize: 18,
     fontWeight: "700",
+    backgroundColor: "transparent",
+  },
+  disabledCard: {
+    opacity: 0.5,
   },
   title: {
     fontFamily: FONTS.serif,

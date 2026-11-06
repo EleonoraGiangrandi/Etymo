@@ -1,6 +1,7 @@
 import { FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
 import { WORDS, WordEntry, getCategoryColor } from "@/constants/words";
 import { useTheme } from "@/context/theme-context";
+import { Feather } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import {
   Image,
@@ -26,6 +27,7 @@ export default function StoryScreen({
   onToggleBookmark,
   onContinue,
   wordsList,
+  onBack,
 }: Props) {
   const { colors, isDark } = useTheme();
   const categoryColor = getCategoryColor(word.category);
@@ -63,6 +65,24 @@ export default function StoryScreen({
         style={styles.lensDecoration}
         resizeMode="contain"
       />
+      {onBack && (
+        <View style={styles.topNavBar}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={[
+              styles.exitBtn,
+              { backgroundColor: colors.surface, borderColor: colors.borderLight },
+            ]}
+            onPress={onBack}
+            activeOpacity={0.8}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Chiudi"
+            accessibilityRole="button"
+          >
+            <Text style={[styles.exitBtnText, { color: colors.textTertiary }]}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={styles.header}>
         <View
           style={[
@@ -83,19 +103,19 @@ export default function StoryScreen({
             style={[
               styles.bookmarkBtn,
               {
-                backgroundColor: isBookmarked ? colors.gold : colors.surface,
-                borderColor: colors.gold,
+                backgroundColor: isBookmarked ? `${colors.gold}20` : colors.surface,
+                borderColor: isBookmarked ? colors.gold : colors.borderLight,
               },
             ]}
           >
-            <Text
+            <Image
+              source={require("@/assets/images/star-icon.png")}
               style={[
-                styles.bookmarkIcon,
-                { color: isBookmarked ? "#fff" : colors.gold },
+                styles.starIconImage,
+                !isBookmarked && { opacity: 0.35 },
               ]}
-            >
-              {isBookmarked ? "★" : "☆"}
-            </Text>
+              resizeMode="contain"
+            />
           </TouchableOpacity>
         </View>
         <Text style={[styles.etymology, { color: colors.textTertiary }]}>
@@ -176,6 +196,25 @@ const styles = StyleSheet.create({
     gap: SPACING.xl,
     paddingBottom: SPACING.xxl * 2,
   },
+  topNavBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    zIndex: 10,
+    marginBottom: -SPACING.md,
+  },
+  exitBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  exitBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
   header: {
     alignItems: "center",
     gap: SPACING.xs,
@@ -210,6 +249,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 4,
+  },
+  starIconImage: {
+    width: 20,
+    height: 20,
   },
   bookmarkIcon: {
     fontSize: 20,

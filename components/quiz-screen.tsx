@@ -22,6 +22,7 @@ type Props = {
   comboMultiplier: number;
   streak: number;
   onAnswer: (index: number) => void;
+  onExit?: () => void;
 };
 
 const { width } = Dimensions.get("window");
@@ -33,6 +34,7 @@ export default function QuizScreen({
   comboMultiplier,
   streak,
   onAnswer,
+  onExit,
 }: Props) {
   const { colors, isDark } = useTheme();
   const categoryColor = getCategoryColor(word.category);
@@ -57,18 +59,32 @@ export default function QuizScreen({
             {getCategoryLabel(word.category)}
           </Text>
         </View>
-        {comboMultiplier > 1 && (
-          <View style={[styles.comboBadge, { backgroundColor: colors.gold }]}>
-            <Text
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {comboMultiplier > 1 && (
+            <View style={[styles.comboBadge, { backgroundColor: colors.gold }]}>
+              <Text
+                style={[
+                  styles.comboText,
+                  { color: isDark ? "#1A1A1A" : colors.primary },
+                ]}
+              >
+                COMBO x{comboMultiplier}
+              </Text>
+            </View>
+          )}
+          {onExit && (
+            <TouchableOpacity
+              onPress={onExit}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={[
-                styles.comboText,
-                { color: isDark ? "#1A1A1A" : colors.primary },
+                styles.exitBtn,
+                { backgroundColor: colors.surface, borderColor: colors.borderLight },
               ]}
             >
-              COMBO x{comboMultiplier}
-            </Text>
-          </View>
-        )}
+              <Text style={[styles.exitBtnText, { color: colors.textTertiary }]}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* The Word */}
@@ -94,45 +110,33 @@ export default function QuizScreen({
           const showResult = selectedAnswer !== null;
           const isCorrectOption = index === word.correctAnswer;
 
-          let cardStyle: any[] = [
-            styles.optionCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ];
-          let textStyle: any[] = [styles.optionText, { color: colors.primary }];
+          let backgroundColor = colors.surface;
+          let borderColor = colors.border;
+          let textColor = colors.primary;
 
           if (showResult) {
             if (isCorrectOption) {
-              cardStyle.push({
-                borderColor: "#4A7C59",
-                backgroundColor: isDark
-                  ? "rgba(74,124,89,0.2)"
-                  : "rgba(74,124,89,0.1)",
-              });
-              textStyle.push({ color: isDark ? "#81C784" : "#2D4A35" });
+              borderColor = "#4A7C59";
+              backgroundColor = isDark ? "#1E3324" : "#EDF5EF";
+              textColor = isDark ? "#81C784" : "#2D4A35";
             } else if (isSelected && !isCorrect) {
-              cardStyle.push({
-                borderColor: colors.error,
-                backgroundColor: isDark
-                  ? "rgba(229,115,115,0.2)"
-                  : "rgba(139,48,48,0.1)",
-              });
-              textStyle.push({ color: isDark ? "#E57373" : "#521D1D" });
-            } else {
-              cardStyle.push(styles.disabledCard);
+              borderColor = colors.error;
+              backgroundColor = isDark ? "#3A1E1E" : "#FDEAEA";
+              textColor = isDark ? "#E57373" : "#521D1D";
             }
           } else if (isSelected) {
-            cardStyle.push({
-              borderColor: colors.gold,
-              backgroundColor: isDark
-                ? "rgba(229,193,88,0.1)"
-                : "rgba(212,175,55,0.05)",
-            });
+            borderColor = colors.gold;
+            backgroundColor = isDark ? "rgba(229,193,88,0.1)" : "rgba(212,175,55,0.05)";
           }
 
           return (
             <TouchableOpacity
               key={index}
-              style={cardStyle}
+              style={[
+                styles.optionCard,
+                { backgroundColor, borderColor },
+                showResult && !isCorrectOption && !isSelected && styles.disabledCard,
+              ]}
               onPress={() => onAnswer(index)}
               disabled={showResult}
               activeOpacity={0.7}
@@ -140,7 +144,7 @@ export default function QuizScreen({
               <Text style={[styles.optionLetter, { color: colors.goldDark }]}>
                 {String.fromCharCode(65 + index)}
               </Text>
-              <Text style={textStyle}>{option}</Text>
+              <Text style={[styles.optionText, { color: textColor }]}>{option}</Text>
               {showResult && isCorrectOption && (
                 <Text
                   style={[
@@ -235,6 +239,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
   },
+  exitBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  exitBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
   wordCard: {
     borderRadius: RADIUS.lg,
     padding: SPACING.xl,
@@ -288,12 +304,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     width: 24,
+    backgroundColor: "transparent",
   },
   optionText: {
     flex: 1,
     fontFamily: FONTS.sans,
     fontSize: 16,
     fontWeight: "600",
+    backgroundColor: "transparent",
   },
   disabledCard: {
     opacity: 0.6,
@@ -301,6 +319,7 @@ const styles = StyleSheet.create({
   resultIcon: {
     fontSize: 20,
     fontWeight: "800",
+    backgroundColor: "transparent",
   },
   decorationContainer: {
     position: "absolute",

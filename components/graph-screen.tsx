@@ -278,36 +278,39 @@ function screenToWorld(sx,sy){
   return{x:(sx-CX)/cam.zoom+cam.x, y:(sy-CY)/cam.zoom+cam.y};
 }
 
-/* ── Initial placement: concentric rings by role ───────────────────── */
+/* ── Initial placement: golden-angle spiral for balanced radial spread ── */
 var learnedNodes = nodes.filter(function(n){return n.isLearned;});
 var mainNodes    = nodes.filter(function(n){return !n.isLearned&&n.isMainWord;});
 var relNodes     = nodes.filter(function(n){return !n.isMainWord;});
 
-function placeRing(arr,r,jitter){
-  arr.forEach(function(n,i){
-    var a=(i/Math.max(arr.length,1))*2*Math.PI+(Math.random()-0.5)*0.3;
-    n.x=r*Math.cos(a)+(Math.random()-0.5)*jitter;
-    n.y=r*Math.sin(a)+(Math.random()-0.5)*jitter;
-    n.vx=0;n.vy=0;
+function placeGolden(arr, rMin, rMax, jitter){
+  var total = Math.max(arr.length, 1);
+  arr.forEach(function(n, i){
+    var goldenAngle = i * 2.3999632;
+    var progress = Math.sqrt((i + 1) / total);
+    var r = rMin + (rMax - rMin) * progress;
+    n.x = r * Math.cos(goldenAngle) + (Math.random() - 0.5) * jitter;
+    n.y = r * Math.sin(goldenAngle) + (Math.random() - 0.5) * jitter;
+    n.vx = 0; n.vy = 0;
   });
 }
 
-var base=Math.min(W,H)*0.20;
-placeRing(learnedNodes, base,         25);
-placeRing(mainNodes,    base*2.1,     40);
-placeRing(relNodes,     base*3.3,     55);
+var base = Math.min(W, H) * 0.22;
+placeGolden(learnedNodes, 20,       base * 1.1, 20);
+placeGolden(mainNodes,    base * 1.1, base * 2.4, 35);
+placeGolden(relNodes,     base * 2.4, base * 3.8, 50);
 
 /* ── Physics ────────────────────────────────────────────────────────── */
-var alpha=1.0, ALPHA_DECAY=0.007, ALPHA_MIN=0.004;
+var alpha=1.0, ALPHA_DECAY=0.005, ALPHA_MIN=0.003;
 
 function tick(){
   if(alpha<=ALPHA_MIN){alpha=ALPHA_MIN;return;}
   var a=alpha;
 
-  /* Gravity toward origin */
-  nodes.forEach(function(n){n.vx-=n.x*0.006*a;n.vy-=n.y*0.006*a;});
+  /* Softened gravity toward origin to avoid central congestion */
+  nodes.forEach(function(n){n.vx-=n.x*0.0032*a;n.vy-=n.y*0.0032*a;});
 
-  /* Repulsion with hard collision floor  */
+  /* Repulsion with wider clearance floor to distribute nodes cleanly */
   for(var i=0;i<nodes.length;i++){
     var ni=nodes[i],ri=nr(ni);
     for(var j=i+1;j<nodes.length;j++){
@@ -315,45 +318,44 @@ function tick(){
       var dx=nj.x-ni.x,dy=nj.y-ni.y;
       var d2=dx*dx+dy*dy+0.01,d=Math.sqrt(d2);
       /* Desired minimum surface-to-surface gap */
-      var minD=ri+rj+56;
-      /* Strong 1/d² repulsion — keeps nodes apart */
-      var strength=(minD*minD*1.35)/d2*a;
+      var minD=ri+rj+74;
+      var strength=(minD*minD*1.45)/d2*a;
       var fx=(dx/d)*strength,fy=(dy/d)*strength;
       ni.vx-=fx;ni.vy-=fy;
       nj.vx+=fx;nj.vy+=fy;
     }
   }
 
-  /* Spring attraction along edges */
+  /* Spring attraction along edges with degree-proportional rest length */
   resolved.forEach(function(l){
     var dx=l.t.x-l.s.x,dy=l.t.y-l.s.y;
     var d=Math.sqrt(dx*dx+dy*dy)||0.01;
-    /* Rest length = sum of radii + gap */
-    var rest=nr(l.s)+nr(l.t)+130;
-    var f=((d-rest)/d)*0.038*a;
+    /* Edge length adapts to local connectivity to let dense hubs expand */
+    var degSum = (deg[l.s.id]||0) + (deg[l.t.id]||0);
+    var rest = nr(l.s) + nr(l.t) + 120 + Math.min(degSum * 8, 110);
+    var f=((d-rest)/d)*0.032*a;
     var fx=dx*f,fy=dy*f;
     l.s.vx+=fx;l.s.vy+=fy;
     l.t.vx-=fx;l.t.vy-=fy;
   });
 
   /* Integrate */
-  nodes.forEach(function(n){n.vx*=0.70;n.vy*=0.70;n.x+=n.vx;n.y+=n.vy;});
+  nodes.forEach(function(n){n.vx*=0.72;n.vy*=0.72;n.x+=n.vx;n.y+=n.vy;});
   alpha-=ALPHA_DECAY;
 }
 
-/* Pre-settle: run 350 ticks synchronously for a stable initial layout */
-for(var _i=0;_i<350;_i++)tick();
+/* Pre-settle: run 400 ticks synchronously for a balanced, untangled layout */
+for(var _i=0;_i<400;_i++)tick();
 
 /* Auto-fit camera to bounding box */
 (function(){
   var mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
-  nodes.forEach(function(n){var r=nr(n)+36;
+  nodes.forEach(function(n){var r=nr(n)+42;
     if(n.x-r<mnX)mnX=n.x-r;if(n.y-r<mnY)mnY=n.y-r;
     if(n.x+r>mxX)mxX=n.x+r;if(n.y+r>mxY)mxY=n.y+r;
   });
   cam.x=(mnX+mxX)/2;cam.y=(mnY+mxY)/2;
-  var gw=mxX-mnX+96,gh=mxY-mnY+112;
-  /* Leave vertical room for the header (40%) */
+  var gw=mxX-mnX+110,gh=mxY-mnY+120;
   var z=Math.min(W/gw, H*0.72/gh, 1.15);
   cam.zoom=Math.max(0.05,z);
 })();
@@ -372,13 +374,20 @@ function openSheet(n){
   selNode=n;
   sWord.textContent=n.word||n.id;
   sEtym.textContent=n.shortEtymology||'Etimologia non ancora disponibile';
-  sBadge.textContent=n.isLearned?'✓ Già esplorata':'🔎 Da scoprire';
+  sBadge.textContent=n.isLearned?'✓ Già esplorata':'✦ Da scoprire';
+  sheet.style.transform='translateY(0)';
   sheet.classList.add('open');
 }
-function closeSheet(){selNode=null;sheet.classList.remove('open');}
+function closeSheet(){
+  selNode=null;
+  sheet.style.transform='translateY(110%)';
+  sheet.classList.remove('open');
+}
 
 /* Tap on sheet → navigate to full story in React Native */
-sheet.addEventListener('click',function(){
+sheet.addEventListener('click',function(e){
+  /* Don't trigger if clicked on drag handle */
+  if(e.target.classList.contains('handle')) return;
   if(selNode&&window.ReactNativeWebView){
     window.ReactNativeWebView.postMessage(
       JSON.stringify({type:'selectWord',wordId:selNode.id})
@@ -386,6 +395,46 @@ sheet.addEventListener('click',function(){
   }
   closeSheet();
 });
+
+/* ── Drag down to dismiss sheet ─────────────────────────────────── */
+var sStartY = 0, sCurY = 0, isDraggingSheet = false;
+var handleEl = document.querySelector('.handle');
+
+sheet.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 1) {
+    sStartY = e.touches[0].clientY;
+    sCurY = 0;
+    isDraggingSheet = true;
+    sheet.style.transition = 'none';
+  }
+}, { passive: true });
+
+sheet.addEventListener('touchmove', function(e) {
+  if (!isDraggingSheet) return;
+  var dy = e.touches[0].clientY - sStartY;
+  if (dy > 0) {
+    sCurY = dy;
+    sheet.style.transform = 'translateY(' + dy + 'px)';
+  }
+}, { passive: true });
+
+sheet.addEventListener('touchend', function(e) {
+  if (!isDraggingSheet) return;
+  isDraggingSheet = false;
+  sheet.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
+  if (sCurY > 55) {
+    closeSheet();
+  } else {
+    sheet.style.transform = 'translateY(0)';
+  }
+});
+
+if(handleEl){
+  handleEl.addEventListener('click', function(e){
+    e.stopPropagation();
+    closeSheet();
+  });
+}
 
 /* ── Hit-test helper ────────────────────────────────────────────────── */
 function hitNode(wx,wy){
@@ -412,24 +461,37 @@ function draw(){
 
   var lw=1/cam.zoom;
 
-  /* ── Edges ─────────────────────────────────────────────────────── */
+  /* ── Edges: graceful curved arcs to avoid linear overlap ─────── */
   resolved.forEach(function(l){
-    ctx.beginPath();ctx.moveTo(l.s.x,l.s.y);ctx.lineTo(l.t.x,l.t.y);
+    var dx = l.t.x - l.s.x, dy = l.t.y - l.s.y;
+    var d = Math.sqrt(dx*dx + dy*dy) || 1;
+    /* Subtle curvature based on node IDs for harmonic distribution */
+    var bend = Math.sin((l.s.x * 0.05 + l.t.y * 0.05)) * Math.min(d * 0.10, 16);
+    var mx = (l.s.x + l.t.x) / 2 - (dy / d) * bend;
+    var my = (l.s.y + l.t.y) / 2 + (dx / d) * bend;
+    l._mx = mx; l._my = my; // cache control point for particles
+
+    ctx.beginPath();
+    ctx.moveTo(l.s.x, l.s.y);
+    ctx.quadraticCurveTo(mx, my, l.t.x, l.t.y);
     ctx.strokeStyle=l.learned?'${edgeLearned}':'${edgeDefault}';
-    ctx.lineWidth=l.learned?1.35*lw:0.7*lw;
+    ctx.lineWidth=l.learned?1.5*lw:0.75*lw;
     ctx.stroke();
   });
 
-  /* ── Floating particles along learned edges ─────────────────────── */
+  /* ── Floating particles along learned curved edges ─────────────── */
   resolved.forEach(function(l){
-    if(l.learned&&Math.random()<0.006)
-      parts.push({l:l,t:Math.random()*0.3,s:0.009+Math.random()*0.014});
+    if(l.learned&&Math.random()<0.007)
+      parts.push({l:l,t:Math.random()*0.2,s:0.008+Math.random()*0.012});
   });
   for(var i=parts.length-1;i>=0;i--){
     var p=parts[i];p.t+=p.s;
     if(p.t>1){parts.splice(i,1);continue;}
-    var px=p.l.s.x+(p.l.t.x-p.l.s.x)*p.t;
-    var py=p.l.s.y+(p.l.t.y-p.l.s.y)*p.t;
+    var it = 1 - p.t;
+    var mx = p.l._mx || (p.l.s.x + p.l.t.x) / 2;
+    var my = p.l._my || (p.l.s.y + p.l.t.y) / 2;
+    var px = it * it * p.l.s.x + 2 * it * p.t * mx + p.t * p.t * p.l.t.x;
+    var py = it * it * p.l.s.y + 2 * it * p.t * my + p.t * p.t * p.l.t.y;
     ctx.fillStyle='${particleColor}';
     ctx.beginPath();ctx.arc(px,py,1.2/cam.zoom,0,7);ctx.fill();
   }

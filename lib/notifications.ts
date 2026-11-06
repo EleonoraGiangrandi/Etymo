@@ -11,12 +11,30 @@ if (Platform.OS !== 'web') {
       shouldShowBanner: true,
       shouldShowList: true,
     }),
-    
   });
+
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+      name: 'Promemoria Etymo',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#D4AF37',
+    });
+  }
 }
 
 export async function requestPermissions() {
   if (Platform.OS === 'web') return false;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Promemoria Etymo',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#D4AF37',
+    });
+  }
+
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
   if (existingStatus !== 'granted') {
@@ -40,12 +58,13 @@ export async function scheduleDailyNotification(hour: number, minute: number) {
     content: {
       title: "🧐 Curiosità Etimologica",
       body: `Sai da dove deriva la parola "${randomWord}"? Scoprilo ora!`,
-      data: { screen: 'game' },
+      data: { screen: 'game', wordId: randomEntry?.id },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour,
       minute,
+      channelId: 'default',
     },
   });
 }
@@ -54,4 +73,3 @@ export async function cancelNotifications() {
   if (Platform.OS === 'web') return;
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
-

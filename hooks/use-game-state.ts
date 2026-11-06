@@ -19,6 +19,37 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/**
+ * Generates an SRS (Spaced Repetition System) weighted learning queue:
+ * - Words with lower mastery (0 or 1) appear first with high probability
+ * - Bookmarked words receive an extra weight boost
+ * - Mastered words (level 3) appear with lower frequency for retention check
+ * - Adds random jitter for session variety
+ */
+export function buildSrsQueue(
+  words: WordEntry[],
+  mastery: Record<string, number> = {},
+  bookmarkedIds: Set<string> = new Set(),
+): WordEntry[] {
+  if (words.length === 0) return [];
+
+  const scored = words.map((w) => {
+    const level = mastery[w.id] ?? 0;
+    // Level 0: 4.0, Level 1: 3.0, Level 2: 1.5, Level 3: 0.5
+    let weight = level === 0 ? 4.0 : level === 1 ? 3.0 : level === 2 ? 1.5 : 0.5;
+
+    if (bookmarkedIds.has(w.id)) {
+      weight += 1.5;
+    }
+
+    const jitter = 0.8 + Math.random() * 0.4;
+    return { word: w, score: weight * jitter };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.word);
+}
+
 export type BadgeType = {
   id: "novizio" | "archeologo" | "guerriero";
   name: string;
@@ -214,17 +245,20 @@ export function useGameState(user?: { id: string; email?: string } | null) {
       }
       setBookmarkedWords(activeWords.filter((w) => bookmarkedIds.includes(w.id)));
 
+      // Initialize queue with SRS weights
+      setQueue(buildSrsQueue(activeWords, initialMastery, new Set(bookmarkedIds)));
+
       // Background optional sync for word updates
       syncWordsFromDb().then((syncedWords) => {
         if (syncedWords && syncedWords.length > 0) {
           setWordsList(syncedWords);
-          setQueue(shuffle(syncedWords));
+          setQueue(buildSrsQueue(syncedWords, initialMastery, new Set(bookmarkedIds)));
           setWordsDiscovered(syncedWords.filter((w) => discoveredIds.includes(w.id)));
           setBookmarkedWords(syncedWords.filter((w) => bookmarkedIds.includes(w.id)));
         }
       }).catch(() => {});
 
-      // Streak logic
+      // Streak logic on mount
       let finalDailyStreak = initialDailyStreak;
       let finalLastPlayed = initialLastPlayed;
       let streakUpdated = false;
@@ -238,24 +272,15 @@ export function useGameState(user?: { id: string; email?: string } | null) {
           (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24),
         );
 
-        if (diffDays === 1) {
-          finalDailyStreak += 1;
-          finalLastPlayed = today;
-          streakUpdated = true;
-        } else if (diffDays > 1) {
-          finalDailyStreak = 1;
-          finalLastPlayed = today;
+        if (diffDays > 1) {
+          // Missed more than 1 day: streak reset to 0 until played
+          finalDailyStreak = 0;
           streakUpdated = true;
         }
-      } else {
-        finalDailyStreak = 1;
-        finalLastPlayed = today;
-        streakUpdated = true;
       }
 
       if (streakUpdated) {
         setDailyStreak(finalDailyStreak);
-        setLastPlayedDate(finalLastPlayed);
         const statsToSave = {
           dailyStreak: finalDailyStreak,
           maxCombo: initialMaxCombo,
@@ -301,16 +326,23 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     (word: WordEntry) => {
       setWordsDiscovered((prev) => {
         const alreadyDiscovered = prev.some((w) => w.id === word.id);
+        const filtered = prev.filter((w) => w.id !== word.id);
+        const newList = [word, ...filtered];
         if (!alreadyDiscovered) {
-          const newList = [word, ...prev];
           checkBadges(newList.length, prev.length);
-          return newList;
         }
-        return prev;
+        return newList;
       });
     },
     [checkBadges],
   );
+
+  // Registra automaticamente ogni parola di cui l'utente legge la storia
+  useEffect(() => {
+    if (phase === "story" && currentWord) {
+      discoverWord(currentWord);
+    }
+  }, [phase, currentWord, discoverWord]);
 
   const handleNext = useCallback(
     (specificWordId?: string) => {
@@ -360,7 +392,8 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     setPhase("story");
     setSelectedAnswer(null);
     setIsCorrect(false);
-  }, [queue]);
+    discoverWord(word);
+  }, [queue, discoverWord]);
 
   const startSpecialQuiz = useCallback((words: WordEntry[]) => {
     if (words.length === 0) return;
@@ -373,11 +406,33 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     setSessionStreak(0);
   }, []);
 
+  const recordDailyActivity = useCallback(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setLastPlayedDate((currentLastPlayed) => {
+      if (currentLastPlayed === today) return currentLastPlayed;
+
+      setDailyStreak((prevStreak) => {
+        if (!currentLastPlayed) return 1;
+        const lastDate = new Date(currentLastPlayed);
+        const todayDate = new Date(today);
+        lastDate.setHours(0, 0, 0, 0);
+        todayDate.setHours(0, 0, 0, 0);
+        const diffDays = Math.round(
+          (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return diffDays === 1 ? prevStreak + 1 : 1;
+      });
+
+      return today;
+    });
+  }, []);
+
   const handleAnswer = useCallback(
     (selectedIndex: number) => {
       setSelectedAnswer(selectedIndex);
       const correct = selectedIndex === currentWord.correctAnswer;
       setIsCorrect(correct);
+      recordDailyActivity();
 
       if (correct) {
         setSessionStreak((prev) => {
@@ -402,17 +457,47 @@ export function useGameState(user?: { id: string; email?: string } | null) {
         }, 1200);
       } else {
         setSessionStreak(0);
+        // SRS: decrement mastery level on error
+        setWordMastery((prev) => {
+          const currentLevel = prev[currentWord.id] ?? 0;
+          const nextLevel = Math.max(0, currentLevel - 1);
+          return { ...prev, [currentWord.id]: nextLevel };
+        });
+
+        // SRS: re-insert this word 3 positions later into the active queue
+        setQueue((prevQueue) => {
+          const copy = [...prevQueue];
+          const insertIdx = Math.min(copy.length, currentIndex + 3);
+          copy.splice(insertIdx, 0, currentWord);
+          return copy;
+        });
+
+        if (!isSpecialMode) {
+          discoverWord(currentWord);
+          setDailyWordsCount((prev) => prev + 1);
+        }
+        // Mostra comunque la storia della parola per permettere all'utente di leggerla e impararla
         setTimeout(() => {
-          handleNextRef.current();
-        }, 1500);
+          setPhase("story");
+        }, 1400);
       }
     },
     [
       currentWord,
+      currentIndex,
       isSpecialMode,
       discoverWord,
+      recordDailyActivity,
     ],
   );
+
+  const updateWordMastery = useCallback((wordId: string, levelDelta: number = 1) => {
+    setWordMastery((prev) => {
+      const currentLevel = prev[wordId] ?? 0;
+      const nextLevel = Math.max(0, Math.min(3, currentLevel + levelDelta));
+      return { ...prev, [wordId]: nextLevel };
+    });
+  }, []);
 
   const toggleBookmark = useCallback(
     async (word: WordEntry) => {
@@ -435,14 +520,35 @@ export function useGameState(user?: { id: string; email?: string } | null) {
   );
 
   const resetGame = useCallback((special: boolean = false) => {
-    setQueue(shuffle(wordsList));
+    if (special) {
+      setQueue(shuffle(wordsList));
+    } else {
+      const bookmarkedIds = new Set(bookmarkedWords.map((w) => w.id));
+      setQueue(buildSrsQueue(wordsList, wordMastery, bookmarkedIds));
+    }
     setCurrentIndex(0);
     setSelectedAnswer(null);
     setIsCorrect(false);
     setPhase("quiz");
     setSessionStreak(0);
     setIsSpecialMode(special);
-  }, [wordsList]);
+  }, [wordsList, wordMastery, bookmarkedWords]);
+
+  const startSrsReview = useCallback(() => {
+    const bookmarkedIds = new Set(bookmarkedWords.map((w) => w.id));
+    const dueWords = wordsList.filter(
+      (w) => (wordMastery[w.id] ?? 0) < 3 || bookmarkedIds.has(w.id),
+    );
+    const targetWords = dueWords.length > 0 ? dueWords : wordsList;
+    const srsQueue = buildSrsQueue(targetWords, wordMastery, bookmarkedIds);
+    setQueue(srsQueue);
+    setCurrentIndex(0);
+    setSelectedAnswer(null);
+    setIsCorrect(false);
+    setPhase("quiz");
+    setIsSpecialMode(true);
+    setSessionStreak(0);
+  }, [wordsList, wordMastery, bookmarkedWords]);
 
   // ── Backup Export / Import ──────────────────────────────────────────────────
 
@@ -502,6 +608,34 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     [loadInitialData],
   );
 
+  const resetAllData = useCallback(async () => {
+    setDailyStreak(0);
+    setMaxCombo(0);
+    setBlitzRecord(0);
+    setRandomRecord(0);
+    setLastPlayedDate(null);
+    setWordMastery({});
+    setDailyWordsCount(0);
+    setDailyBlitzCount(0);
+    setWordsDiscovered([]);
+    setBookmarkedWords([]);
+    setSessionStreak(0);
+    setSelectedAnswer(null);
+    setIsCorrect(false);
+    setPhase("quiz");
+
+    await AsyncStorage.multiRemove([
+      STATS_KEY,
+      BOOKMARKS_KEY,
+      "@user_stats_v2_guest",
+      "@user_stats_v2_local_user",
+      "@user_stats_v2",
+      "@bookmarked_words_guest",
+      "@bookmarked_words_local_user",
+      "@bookmarked_words",
+    ]);
+  }, []);
+
   return {
     wordsList,
     currentWord,
@@ -516,6 +650,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     randomRecord,
     updateRandomRecord,
     wordMastery,
+    updateWordMastery,
     wordsDiscovered,
     bookmarkedWords,
     toggleBookmark,
@@ -523,7 +658,9 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     handleNext,
     showWordStory,
     startSpecialQuiz,
+    startSrsReview,
     resetGame,
+    resetAllData,
     newBadge,
     clearNewBadge: () => setNewBadge(null),
     isPremium: true,

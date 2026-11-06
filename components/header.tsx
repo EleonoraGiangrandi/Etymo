@@ -1,5 +1,6 @@
 import { FONTS, SPACING } from "@/constants/theme";
 import { useTheme } from "@/context/theme-context";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -24,7 +25,7 @@ export default function Header({ streak, wordsDiscoveredCount }: Props) {
             },
           ]}
         >
-          <Text style={styles.statEmoji}>🔥</Text>
+          <Ionicons name="flame" size={16} color="#E55A2B" />
           <Text style={[styles.statText, { color: colors.primary }]}>
             {streak}
           </Text>
@@ -39,7 +40,7 @@ export default function Header({ streak, wordsDiscoveredCount }: Props) {
             },
           ]}
         >
-          <Text style={styles.statEmoji}>📖</Text>
+          <Feather name="book-open" size={13} color={colors.primary} />
           <Text style={[styles.statText, { color: colors.primary }]}>
             {wordsDiscoveredCount}
           </Text>
@@ -74,10 +75,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    gap: 4,
-  },
-  statEmoji: {
-    fontSize: 14,
+    gap: 6,
   },
   statText: {
     fontFamily: FONTS.sans,
