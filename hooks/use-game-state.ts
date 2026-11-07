@@ -1,5 +1,6 @@
 import { WORDS, WordEntry } from "@/constants/words";
 import { getCachedWords, syncWordsFromDb } from "@/lib/words-db";
+import { getNextRabbitHoleWord } from "@/lib/graph-engine";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, AppStateStatus } from "react-native";
@@ -50,11 +51,9 @@ export function buildSrsQueue(
   return scored.map((s) => s.word);
 }
 
-export type BadgeType = {
-  id: "novizio" | "archeologo" | "guerriero";
-  name: string;
-  icon: string;
-};
+import { ALL_BADGES, Badge } from "@/constants/badges";
+
+export type BadgeType = Badge;
 
 // ── Main hook ──────────────────────────────────────────────────────────
 
@@ -77,10 +76,13 @@ export function useGameState(user?: { id: string; email?: string } | null) {
   const [wordMastery, setWordMastery] = useState<Record<string, number>>({});
   const [bookmarkedWords, setBookmarkedWords] = useState<WordEntry[]>([]);
   const [isSpecialMode, setIsSpecialMode] = useState(false);
+  const [isSrsMode, setIsSrsMode] = useState(false);
   const [newBadge, setNewBadge] = useState<BadgeType | null>(null);
+  const [unlockedBadgeIds, setUnlockedBadgeIds] = useState<string[]>([]);
 
   const [dailyWordsCount, setDailyWordsCount] = useState(0);
   const [dailyBlitzCount, setDailyBlitzCount] = useState(0);
+  const [rabbitHoleTrail, setRabbitHoleTrail] = useState<string[]>([]);
 
   const handleNextRef = useRef<(specificWordId?: string) => void>(() => {});
 
@@ -88,30 +90,42 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     loadInitialData();
   }, []);
 
-  const checkBadges = useCallback((count: number, prevCount: number) => {
-    const total = wordsList.length;
-    const thresholds = [
-      { id: "novizio", name: "Novizio", icon: "🎓", req: 3 },
-      {
-        id: "archeologo",
-        name: "Archeologo",
-        icon: "🏺",
-        req: Math.floor(total * 0.5),
-      },
-      {
-        id: "guerriero",
-        name: "Guerriero",
-        icon: "⚔️",
-        req: Math.floor(total * 0.8),
-      },
-    ];
-    for (const t of thresholds) {
-      if (count >= t.req && prevCount < t.req) {
-        setNewBadge(t as BadgeType);
-        return;
+  const checkBadgeUnlock = useCallback(
+    (stats: {
+      wordsCount?: number;
+      streak?: number;
+      combo?: number;
+      blitz?: number;
+      bookmarks?: number;
+      mastery?: number;
+    }) => {
+      const wordsCount = stats.wordsCount ?? wordsDiscovered.length;
+      const currentStreak = stats.streak ?? dailyStreak;
+      const currentCombo = stats.combo ?? maxCombo;
+      const currentBlitz = stats.blitz ?? blitzRecord;
+      const currentBookmarks = stats.bookmarks ?? bookmarkedWords.length;
+      const currentMastery = stats.mastery ?? Object.values(wordMastery).filter((v) => v >= 3).length;
+
+      for (const badge of ALL_BADGES) {
+        if (unlockedBadgeIds.includes(badge.id)) continue;
+
+        let unlocked = false;
+        if (badge.category === "words" && wordsCount >= badge.req) unlocked = true;
+        if (badge.category === "streak" && currentStreak >= badge.req) unlocked = true;
+        if (badge.category === "combo" && currentCombo >= badge.req) unlocked = true;
+        if (badge.category === "blitz" && currentBlitz >= badge.req) unlocked = true;
+        if (badge.category === "bookmarks" && currentBookmarks >= badge.req) unlocked = true;
+        if (badge.category === "mastery" && currentMastery >= badge.req) unlocked = true;
+
+        if (unlocked) {
+          setUnlockedBadgeIds((prev) => [...prev, badge.id]);
+          setNewBadge(badge);
+          break;
+        }
       }
-    }
-  }, [wordsList]);
+    },
+    [wordsDiscovered.length, dailyStreak, maxCombo, blitzRecord, bookmarkedWords.length, wordMastery, unlockedBadgeIds]
+  );
 
   const buildCurrentState = useCallback(
     () => ({
@@ -122,6 +136,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
       lastPlayedDate,
       wordMastery,
       discoveredIds: wordsDiscovered.map((w) => w.id),
+      unlockedBadgeIds,
       isPremium: true,
       dailyWordsCount,
       dailyBlitzCount,
@@ -134,6 +149,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
       lastPlayedDate,
       wordMastery,
       wordsDiscovered,
+      unlockedBadgeIds,
       dailyWordsCount,
       dailyBlitzCount,
     ],
@@ -207,6 +223,9 @@ export function useGameState(user?: { id: string; email?: string } | null) {
         initialLastPlayed = parsed.lastPlayedDate ?? null;
         initialMastery = parsed.wordMastery ?? {};
         discoveredIds = parsed.discoveredIds ?? [];
+        if (Array.isArray(parsed.unlockedBadgeIds)) {
+          setUnlockedBadgeIds(parsed.unlockedBadgeIds);
+        }
 
         if (parsed.lastPlayedDate === today) {
           initialDailyWordsCount = parsed.dailyWordsCount ?? 0;
@@ -304,22 +323,24 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     (newScore: number) => {
       if (newScore > blitzRecord) {
         setBlitzRecord(newScore);
+        checkBadgeUnlock({ blitz: newScore });
         return true;
       }
       return false;
     },
-    [blitzRecord],
+    [blitzRecord, checkBadgeUnlock],
   );
 
   const updateRandomRecord = useCallback(
     (newScore: number) => {
       if (newScore > randomRecord) {
         setRandomRecord(newScore);
+        checkBadgeUnlock({ combo: newScore });
         return true;
       }
       return false;
     },
-    [randomRecord],
+    [randomRecord, checkBadgeUnlock],
   );
 
   const discoverWord = useCallback(
@@ -329,12 +350,12 @@ export function useGameState(user?: { id: string; email?: string } | null) {
         const filtered = prev.filter((w) => w.id !== word.id);
         const newList = [word, ...filtered];
         if (!alreadyDiscovered) {
-          checkBadges(newList.length, prev.length);
+          checkBadgeUnlock({ wordsCount: newList.length });
         }
         return newList;
       });
     },
-    [checkBadges],
+    [checkBadgeUnlock],
   );
 
   // Registra automaticamente ogni parola di cui l'utente legge la storia
@@ -353,6 +374,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
             w.word.toLowerCase() === specificWordId.toLowerCase(),
         );
         if (word) {
+          setRabbitHoleTrail((prev) => [...prev.slice(-10), word.id]);
           const newQueue = [...queue];
           const nextIndex = (currentIndex + 1) % newQueue.length;
           newQueue[nextIndex] = word;
@@ -360,17 +382,41 @@ export function useGameState(user?: { id: string; email?: string } | null) {
           setCurrentIndex(nextIndex);
           setSelectedAnswer(null);
           setIsCorrect(false);
-          setPhase("story");
-          discoverWord(word);
+          setPhase("quiz");
           return;
         }
       }
-      setCurrentIndex((prev) => (prev + 1) % queue.length);
+
+      // Se siamo in modalità speciale o ripasso SRS, scorriamo la coda dedicata
+      if (isSpecialMode || isSrsMode) {
+        const nextIndex = (currentIndex + 1) % queue.length;
+        setCurrentIndex(nextIndex);
+        setSelectedAnswer(null);
+        setIsCorrect(false);
+        setPhase("quiz");
+        return;
+      }
+
+      // ── Flusso Rabbit Hole: seleziona una parola collegata con criterio ──
+      const nextWord = getNextRabbitHoleWord(
+        currentWord,
+        wordsList,
+        wordsDiscovered,
+        wordMastery,
+        rabbitHoleTrail
+      );
+
+      setRabbitHoleTrail((prev) => [...prev.slice(-10), nextWord.id]);
+      const newQueue = [...queue];
+      const nextIndex = (currentIndex + 1) % newQueue.length;
+      newQueue[nextIndex] = nextWord;
+      setQueue(newQueue);
+      setCurrentIndex(nextIndex);
       setSelectedAnswer(null);
       setIsCorrect(false);
       setPhase("quiz");
     },
-    [queue, currentIndex, wordsList, discoverWord],
+    [queue, currentIndex, wordsList, currentWord, wordsDiscovered, wordMastery, rabbitHoleTrail, isSpecialMode, isSrsMode],
   );
 
   useEffect(() => {
@@ -392,6 +438,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     setPhase("story");
     setSelectedAnswer(null);
     setIsCorrect(false);
+    setIsSrsMode(false);
     discoverWord(word);
   }, [queue, discoverWord]);
 
@@ -403,6 +450,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     setIsCorrect(false);
     setPhase("quiz");
     setIsSpecialMode(true);
+    setIsSrsMode(false);
     setSessionStreak(0);
   }, []);
 
@@ -437,7 +485,11 @@ export function useGameState(user?: { id: string; email?: string } | null) {
       if (correct) {
         setSessionStreak((prev) => {
           const newStreak = prev + 1;
-          setMaxCombo((currentMax) => Math.max(currentMax, newStreak));
+          setMaxCombo((currentMax) => {
+            const nextMax = Math.max(currentMax, newStreak);
+            checkBadgeUnlock({ combo: nextMax });
+            return nextMax;
+          });
           return newStreak;
         });
 
@@ -452,9 +504,16 @@ export function useGameState(user?: { id: string; email?: string } | null) {
           setDailyWordsCount((prev) => prev + 1);
         }
 
-        setTimeout(() => {
-          setPhase("story");
-        }, 1200);
+        if (isSrsMode) {
+          // Nel Ripasso Intelligente, se la risposta è corretta si passa direttamente alla parola successiva
+          setTimeout(() => {
+            handleNextRef.current();
+          }, 1000);
+        } else {
+          setTimeout(() => {
+            setPhase("story");
+          }, 1200);
+        }
       } else {
         setSessionStreak(0);
         // SRS: decrement mastery level on error
@@ -476,7 +535,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
           discoverWord(currentWord);
           setDailyWordsCount((prev) => prev + 1);
         }
-        // Mostra comunque la storia della parola per permettere all'utente di leggerla e impararla
+        // Se invece sbaglia, mostra la storia della parola per permettere all'utente di leggerla e impararla
         setTimeout(() => {
           setPhase("story");
         }, 1400);
@@ -486,6 +545,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
       currentWord,
       currentIndex,
       isSpecialMode,
+      isSrsMode,
       discoverWord,
       recordDailyActivity,
     ],
@@ -532,6 +592,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     setPhase("quiz");
     setSessionStreak(0);
     setIsSpecialMode(special);
+    setIsSrsMode(false);
   }, [wordsList, wordMastery, bookmarkedWords]);
 
   const startSrsReview = useCallback(() => {
@@ -547,6 +608,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     setIsCorrect(false);
     setPhase("quiz");
     setIsSpecialMode(true);
+    setIsSrsMode(true);
     setSessionStreak(0);
   }, [wordsList, wordMastery, bookmarkedWords]);
 
@@ -560,20 +622,23 @@ export function useGameState(user?: { id: string; email?: string } | null) {
       AsyncStorage.getItem(LOCAL_USER_AVATAR_KEY),
     ]);
 
+    const resolvedName = localName || (user as any)?.user_metadata?.full_name || "Studioso Errante";
+    const resolvedAvatar = localAvatar || (user as any)?.user_metadata?.avatar_url || "";
+
     const backupData = {
       app: "Etymo",
       version: 1,
       exportedAt: new Date().toISOString(),
       profile: {
-        name: localName || "Studioso Errante",
-        avatar: localAvatar || "",
+        name: resolvedName,
+        avatar: resolvedAvatar,
       },
       stats: savedStats ? JSON.parse(savedStats) : buildCurrentState(),
       bookmarks: savedBookmarks ? JSON.parse(savedBookmarks) : bookmarkedWords.map((w) => w.id),
     };
 
     return JSON.stringify(backupData, null, 2);
-  }, [buildCurrentState, bookmarkedWords]);
+  }, [buildCurrentState, bookmarkedWords, user]);
 
   const importBackup = useCallback(
     async (jsonString: string): Promise<{ success: boolean; error?: string }> => {
@@ -586,11 +651,14 @@ export function useGameState(user?: { id: string; email?: string } | null) {
           return { success: false, error: "Il file non contiene dati di backup per Etymo." };
         }
 
-        if (data.profile?.name) {
-          await AsyncStorage.setItem(LOCAL_USER_NAME_KEY, data.profile.name);
+        const profileName = data.profile?.name || data.profile?.full_name || data.userName || data.user_name;
+        const profileAvatar = data.profile?.avatar ?? data.profile?.avatar_url ?? data.avatarUrl ?? data.avatar_url;
+
+        if (profileName) {
+          await AsyncStorage.setItem(LOCAL_USER_NAME_KEY, profileName);
         }
-        if (data.profile?.avatar) {
-          await AsyncStorage.setItem(LOCAL_USER_AVATAR_KEY, data.profile.avatar);
+        if (profileAvatar !== undefined) {
+          await AsyncStorage.setItem(LOCAL_USER_AVATAR_KEY, profileAvatar);
         }
         if (data.stats) {
           await AsyncStorage.setItem(STATS_KEY, JSON.stringify(data.stats));
@@ -663,6 +731,9 @@ export function useGameState(user?: { id: string; email?: string } | null) {
     resetAllData,
     newBadge,
     clearNewBadge: () => setNewBadge(null),
+    rabbitHoleTrail,
+    isSpecialMode,
+    isSrsMode,
     isPremium: true,
     dailyWordsCount,
     dailyBlitzCount,

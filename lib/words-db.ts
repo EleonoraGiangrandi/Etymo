@@ -1,8 +1,31 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { WORDS, WordEntry } from "@/constants/words";
+import { buildOptimizedGraph } from "./graph-engine";
 
 const WORDS_CACHE_KEY = "@etymo_dynamic_words_cache";
+
+/**
+ * Normalizza la categoria per assicurare la versione italiana canonica
+ */
+function normalizeCategory(category: any): any {
+  const map: Record<string, string> = {
+    society: "societa",
+    food: "cucina",
+    body: "corpo",
+    nature: "natura",
+    religion: "religione",
+    history: "storia",
+    science: "scienza",
+    art: "arte",
+    tech: "tecnologia",
+    travel: "viaggio",
+    objects: "oggetti",
+    war: "guerra",
+    trade: "commercio",
+  };
+  return map[category] || category || "societa";
+}
 
 /**
  * Maps database snake_case columns back to camelCase WordEntry structure
@@ -15,7 +38,7 @@ function mapDbToWordEntry(dbWord: any): WordEntry {
     options: dbWord.options as [string, string, string],
     story: dbWord.story,
     shortEtymology: dbWord.short_etymology,
-    category: dbWord.category,
+    category: normalizeCategory(dbWord.category),
     relatedWords: dbWord.related_words || [],
     difficulty: dbWord.difficulty as 1 | 2 | 3,
   };
@@ -30,7 +53,8 @@ export async function getCachedWords(): Promise<WordEntry[]> {
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        // Garantisce che il grafo sia sempre integro e collegato
+        return buildOptimizedGraph(parsed);
       }
     }
   } catch (e) {
@@ -57,9 +81,11 @@ export async function syncWordsFromDb(): Promise<WordEntry[] | null> {
 
     if (data && data.length > 0) {
       const mappedWords = data.map(mapDbToWordEntry);
-      await AsyncStorage.setItem(WORDS_CACHE_KEY, JSON.stringify(mappedWords));
-      console.log(`[WordsDB] Successfully synchronized ${mappedWords.length} words.`);
-      return mappedWords;
+      // Auto-collega dinamicamente le nuove parole al grafo
+      const connectedWords = buildOptimizedGraph(mappedWords);
+      await AsyncStorage.setItem(WORDS_CACHE_KEY, JSON.stringify(connectedWords));
+      console.log(`[WordsDB] Successfully synchronized and connected ${connectedWords.length} words.`);
+      return connectedWords;
     }
   } catch (e) {
     console.warn("[WordsDB] Exception syncing words from database:", e);

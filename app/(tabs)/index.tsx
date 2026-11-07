@@ -7,7 +7,7 @@ import ProfileScreen from "@/components/profile-screen";
 import QuizScreen from "@/components/quiz-screen";
 import StoryScreen from "@/components/story-screen";
 import { FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
-import { WordEntry, WORDS } from "@/constants/words";
+import { WordEntry, WORDS, getWordOfTheDay } from "@/constants/words";
 import { useGameState } from "@/hooks/use-game-state";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -28,7 +28,7 @@ import RandomGame from "@/components/random-game";
 import OnboardingScreen from "@/components/onboarding-screen";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import * as Linking from "expo-linking";
@@ -204,10 +204,7 @@ function AppContent() {
 
   useEffect(() => {
     if (Platform.OS === "android" && wordsList && wordsList.length > 0) {
-      const today = new Date();
-      const dateHash = today.getFullYear() * 1000 + today.getMonth() * 100 + today.getDate();
-      const index = dateHash % wordsList.length;
-      const wordOfTheDay = wordsList[index];
+      const wordOfTheDay = getWordOfTheDay(wordsList);
 
       requestWidgetUpdate({
         widgetName: "WordOfTheDay",
@@ -223,27 +220,38 @@ function AppContent() {
     if (!url) return;
     try {
       const parsed = Linking.parse(url);
-      const path = parsed.path || "";
+      const path = (parsed.path || "").trim();
+      const hostname = (parsed.hostname || "").trim();
       const queryParams = parsed.queryParams || {};
 
       let wordId: string | undefined;
 
-      if (path.startsWith("word-story/")) {
+      if (typeof queryParams.wordId === "string" && queryParams.wordId) {
+        wordId = queryParams.wordId;
+      } else if (typeof queryParams.id === "string" && queryParams.id) {
+        wordId = queryParams.id;
+      } else if (path.startsWith("word-story/")) {
         wordId = path.split("/")[1];
-      } else if (path === "word-story" && typeof queryParams.wordId === "string") {
-        wordId = queryParams.wordId;
-      } else if (typeof queryParams.wordId === "string") {
-        wordId = queryParams.wordId;
+      } else if (path.startsWith("word/")) {
+        wordId = path.split("/")[1];
+      } else if (hostname === "word-story" && path) {
+        wordId = path;
+      } else if (hostname === "word" && path) {
+        wordId = path;
+      } else if (path) {
+        wordId = path;
       }
 
       if (wordId) {
-        const decodedWordId = decodeURIComponent(wordId);
+        const decodedWordId = decodeURIComponent(wordId).trim();
         const word = wordsList.find(
           (w) =>
             w.id.toLowerCase() === decodedWordId.toLowerCase() ||
-            w.word.toLowerCase() === decodedWordId.toLowerCase()
+            w.word.toLowerCase() === decodedWordId.toLowerCase(),
         );
         if (word) {
+          setShowBlitz(false);
+          setShowRandomGame(false);
           setIsPlaying(true);
           showWordStory(word);
         }
@@ -268,6 +276,31 @@ function AppContent() {
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const notifSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.wordId) {
+        const found = wordsList.find(
+          (w) =>
+            w.id.toLowerCase() === String(data.wordId).toLowerCase() ||
+            w.word.toLowerCase() === String(data.wordId).toLowerCase(),
+        );
+        if (found) {
+          setShowBlitz(false);
+          setShowRandomGame(false);
+          setIsPlaying(true);
+          showWordStory(found);
+          return;
+        }
+      }
+      if (data?.screen === "game") {
+        handleStartDaily();
+      }
+    });
+
+    return () => notifSub.remove();
+  }, [wordsList]);
 
   const handleTabPress = (tab: "game" | "library" | "graph" | "profile") => {
     setActiveTab(tab);
@@ -392,11 +425,8 @@ function AppContent() {
             bookmarkedWords={bookmarkedWords}
             onSelectWord={handleSelectWord}
             wordMastery={wordMastery}
-            onResetOnboarding={async () => {
-              await AsyncStorage.removeItem(ONBOARDING_KEY);
-              setShowOnboarding(true);
-            }}
             wordsList={wordsList}
+            blitzRecord={blitzRecord}
             onExportBackup={exportBackup}
             onImportBackup={importBackup}
             onResetAllData={resetAllData}
@@ -463,14 +493,18 @@ function AppContent() {
                 { backgroundColor: colors.gold + "20" },
               ]}
             >
-              {newBadge?.id === "novizio" ? (
-                <Feather name="award" size={40} color={colors.goldDark} />
-              ) : newBadge?.id === "archeologo" ? (
-                <Feather name="compass" size={40} color={colors.goldDark} />
-              ) : newBadge?.id === "guerriero" ? (
-                <Feather name="shield" size={40} color={colors.goldDark} />
+              {newBadge?.iconFamily === "Ionicons" ? (
+                <Ionicons
+                  name={newBadge.iconName as any}
+                  size={40}
+                  color={colors.goldDark}
+                />
               ) : (
-                <Feather name="award" size={40} color={colors.goldDark} />
+                <Feather
+                  name={(newBadge?.iconName || "award") as any}
+                  size={40}
+                  color={colors.goldDark}
+                />
               )}
             </View>
             <Text style={[styles.badgeTitle, { color: colors.primary }]}>
@@ -480,8 +514,8 @@ function AppContent() {
               {newBadge?.name}
             </Text>
             <Text style={[styles.badgeDesc, { color: colors.textSecondary }]}>
-              Complimenti! Hai dimostrato grande costanza ed esplorato
-              profondamente le radici del nostro linguaggio.
+              {newBadge?.desc ||
+                "Complimenti! Hai dimostrato grande costanza ed esplorato profondamente le radici del nostro linguaggio."}
             </Text>
             <TouchableOpacity
               style={[styles.closeBtn, { backgroundColor: colors.gold }]}

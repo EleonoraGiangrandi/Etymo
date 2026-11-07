@@ -1,5 +1,6 @@
 import { FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
-import { WORDS, WordEntry, getCategoryColor } from "@/constants/words";
+import { WORDS, WordEntry, getCategoryColor, getCategoryLabel } from "@/constants/words";
+import { calculateWordAffinity } from "@/lib/graph-engine";
 import { useTheme } from "@/context/theme-context";
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo } from "react";
@@ -32,17 +33,19 @@ export default function StoryScreen({
   const { colors, isDark } = useTheme();
   const categoryColor = getCategoryColor(word.category);
 
-  // Resolve all related word display names once per word change
+  // Risolve le parole collegate e arricchisce con la motivazione del legame
   const resolvedRelated = useMemo(() => {
     const list = wordsList || WORDS;
     const wordById = new Map(list.map((w) => [w.id.toLowerCase(), w]));
     const wordByName = new Map(list.map((w) => [w.word.toLowerCase(), w]));
 
-    function resolveRelatedWord(id: string): { display: string; found: boolean } {
+    function resolveRelatedWord(id: string): { display: string; found: boolean; reason?: string } {
       const lower = id.toLowerCase();
       const entry = wordById.get(lower) ?? wordByName.get(lower);
-      if (entry) return { display: entry.word, found: true };
-      // Fallback: capitalise first letter of each word in the id
+      if (entry) {
+        const affinity = calculateWordAffinity(word, entry);
+        return { display: entry.word, found: true, reason: affinity?.reason };
+      }
       const display = id
         .replace(/([a-z])([A-Z])/g, "$1 $2")
         .split(/[-_\s]+/)
@@ -51,8 +54,8 @@ export default function StoryScreen({
       return { display, found: false };
     }
 
-    return word.relatedWords.map((id) => ({ id, ...resolveRelatedWord(id) }));
-  }, [word.relatedWords, wordsList]);
+    return (word.relatedWords || []).map((id) => ({ id, ...resolveRelatedWord(id) }));
+  }, [word, wordsList]);
 
   return (
     <ScrollView
@@ -91,7 +94,7 @@ export default function StoryScreen({
           ]}
         >
           <Text style={[styles.categoryText, { color: categoryColor }]}>
-            {word.category.toUpperCase()}
+            {getCategoryLabel(word.category).toUpperCase()}
           </Text>
         </View>
         <View style={styles.titleRow}>
@@ -149,18 +152,26 @@ export default function StoryScreen({
               { color: isDark ? "#1A1A1A" : colors.background },
             ]}
           >
-            Prossima parola
+            Prossima parola collegata →
           </Text>
         </TouchableOpacity>
       </View>
 
       {resolvedRelated.length > 0 && (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-            Esplora connessioni
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+              Esplora connessioni
+            </Text>
+            <View style={styles.sectionSubtitleRow}>
+              <Feather name="link-2" size={13} color={colors.goldDark} />
+              <Text style={[styles.sectionSubtitle, { color: colors.goldDark }]}>
+                Percorsi collegati
+              </Text>
+            </View>
+          </View>
           <View style={styles.relatedContainer}>
-            {resolvedRelated.map(({ id, display }) => (
+            {resolvedRelated.map(({ id, display, reason }) => (
               <TouchableOpacity
                 key={id}
                 style={[
@@ -172,12 +183,24 @@ export default function StoryScreen({
                 ]}
                 onPress={() => onContinue(id)}
               >
-                <Text style={[styles.relatedText, { color: colors.primary }]}>
-                  {display}
-                </Text>
-                <Text style={[styles.relatedArrow, { color: colors.goldDark }]}>
-                  →
-                </Text>
+                <View style={styles.relatedChipTextCol}>
+                  <View style={styles.relatedWordRow}>
+                    <Text style={[styles.relatedText, { color: colors.primary }]}>
+                      {display}
+                    </Text>
+                    <Text style={[styles.relatedArrow, { color: colors.goldDark }]}>
+                      →
+                    </Text>
+                  </View>
+                  {reason && (
+                    <Text
+                      style={[styles.relatedReason, { color: colors.textTertiary }]}
+                      numberOfLines={1}
+                    >
+                      {reason}
+                    </Text>
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -283,6 +306,11 @@ const styles = StyleSheet.create({
   section: {
     gap: SPACING.md,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   sectionTitle: {
     fontFamily: FONTS.sans,
     fontSize: 12,
@@ -290,27 +318,50 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  relatedContainer: {
+  sectionSubtitleRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 4,
+  },
+  sectionSubtitle: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  relatedContainer: {
+    flexDirection: "column",
     gap: SPACING.sm,
   },
   relatedChip: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    gap: 8,
+  },
+  relatedChipTextCol: {
+    flex: 1,
+    gap: 4,
+  },
+  relatedWordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   relatedText: {
     fontFamily: FONTS.serif,
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   relatedArrow: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  relatedReason: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+    fontStyle: "italic",
   },
   actions: {
     flexDirection: "row",

@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getCachedWords } from './words-db';
+import { getWordOfTheDay } from '../constants/words';
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -49,16 +50,14 @@ export async function scheduleDailyNotification(hour: number, minute: number) {
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const activeWords = await getCachedWords();
-  const randomEntry = activeWords && activeWords.length > 0
-    ? activeWords[Math.floor(Math.random() * activeWords.length)]
-    : null;
-  const randomWord = randomEntry?.word || "cultura";
+  const todayEntry = getWordOfTheDay(activeWords && activeWords.length > 0 ? activeWords : undefined);
+  const targetWord = todayEntry?.word || "cultura";
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "🧐 Curiosità Etimologica",
-      body: `Sai da dove deriva la parola "${randomWord}"? Scoprilo ora!`,
-      data: { screen: 'game', wordId: randomEntry?.id },
+      title: "Curiosità Etimologica",
+      body: `Sai da dove deriva la parola "${targetWord}"? Scoprilo ora!`,
+      data: { screen: 'game', wordId: todayEntry?.id },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -67,6 +66,31 @@ export async function scheduleDailyNotification(hour: number, minute: number) {
       channelId: 'default',
     },
   });
+}
+
+export async function sendImmediateTestNotification(wordEntry?: { id: string; word: string }) {
+  if (Platform.OS === 'web') return false;
+
+  const hasPermission = await requestPermissions();
+  if (!hasPermission) return false;
+
+  let target = wordEntry;
+  if (!target) {
+    const activeWords = await getCachedWords();
+    target = getWordOfTheDay(activeWords && activeWords.length > 0 ? activeWords : undefined);
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Curiosità Etimologica",
+      body: `Sai da dove deriva la parola "${target.word}"? Scoprilo ora!`,
+      data: { screen: 'game', wordId: target.id },
+      sound: true,
+    },
+    trigger: null,
+  });
+
+  return true;
 }
 
 export async function cancelNotifications() {

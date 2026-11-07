@@ -6,7 +6,7 @@ import {
   getCategoryLabel,
 } from "@/constants/words";
 import { useTheme } from "@/context/theme-context";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useMemo, useState } from "react";
 import {
@@ -37,19 +37,18 @@ type Props = {
 };
 
 const ALL_CATEGORIES: WordEntry["category"][] = [
-  "society",
-  "food",
-  "war",
-  "nature",
-  "religion",
-  "body",
-  "trade",
-  "history",
-  "science",
-  "art",
-  "tech",
-  "travel",
-  "objects",
+  "societa",
+  "cucina",
+  "natura",
+  "scienza",
+  "storia",
+  "arte",
+  "religione",
+  "commercio",
+  "viaggio",
+  "oggetti",
+  "corpo",
+  "guerra",
 ];
 
 export default function LibraryScreen({
@@ -76,8 +75,9 @@ export default function LibraryScreen({
   // Scope Filter: "all" | "saved"
   const [scopeFilter, setScopeFilter] = useState<"all" | "saved">("all");
 
-  // Category Multi-Select Filter (empty array means ALL categories)
+  // Category Multi-Select Filter (empty array or all selected means ALL categories)
   const [selectedCategories, setSelectedCategories] = useState<WordEntry["category"][]>([]);
+  const isAllCategoriesActive = selectedCategories.length === 0 || selectedCategories.length === ALL_CATEGORIES.length;
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Search filter
@@ -102,7 +102,7 @@ export default function LibraryScreen({
     }
 
     // Filter by selected categories (multi-select)
-    if (selectedCategories.length > 0 && selectedCategories.length < ALL_CATEGORIES.length) {
+    if (!isAllCategoriesActive && selectedCategories.length > 0) {
       const catSet = new Set(selectedCategories);
       list = list.filter((w) => catSet.has(w.category));
     }
@@ -122,7 +122,7 @@ export default function LibraryScreen({
     }
 
     return list;
-  }, [wordsDiscovered, scopeFilter, selectedCategories, searchQuery, bookmarkedIds]);
+  }, [wordsDiscovered, scopeFilter, selectedCategories, isAllCategoriesActive, searchQuery, bookmarkedIds]);
 
   // Statistics
   const totalDiscovered = wordsDiscovered.length;
@@ -153,17 +153,16 @@ export default function LibraryScreen({
     const isAllActive = selectedCategories.length === 0 || selectedCategories.length === ALL_CATEGORIES.length;
 
     if (isAllActive) {
-      // If all were active, clicking one isolates that single category
-      setSelectedCategories([cat]);
+      // Se tutte le caselle erano selezionate, deseleziona solo quella cliccata
+      setSelectedCategories(ALL_CATEGORIES.filter((c) => c !== cat));
     } else {
       if (selectedCategories.includes(cat)) {
         const next = selectedCategories.filter((c) => c !== cat);
-        // If unchecking the last selected category, revert to all
         setSelectedCategories(next);
       } else {
         const next = [...selectedCategories, cat];
         if (next.length === ALL_CATEGORIES.length) {
-          setSelectedCategories([]); // reset to all
+          setSelectedCategories([...ALL_CATEGORIES]);
         } else {
           setSelectedCategories(next);
         }
@@ -173,10 +172,8 @@ export default function LibraryScreen({
 
   const selectAllCategories = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedCategories([]);
+    setSelectedCategories([...ALL_CATEGORIES]);
   };
-
-  const isAllCategoriesActive = selectedCategories.length === 0 || selectedCategories.length === ALL_CATEGORIES.length;
 
   const categoryBtnLabel = useMemo(() => {
     if (isAllCategoriesActive) {
@@ -618,16 +615,16 @@ export default function LibraryScreen({
               <View
                 style={[
                   styles.gameIconBox,
-                  { backgroundColor: `${colors.gold}20`, borderColor: colors.gold },
+                  { backgroundColor: isDark ? "rgba(2, 132, 199, 0.18)" : "#E0F2FE", borderColor: "#0284C7" },
                 ]}
               >
-                <Feather name="layers" size={24} color={colors.goldDark} />
+                <Feather name="layers" size={24} color="#0284C7" />
               </View>
               <View style={styles.gameHeaderText}>
                 <Text style={[styles.gameName, { color: colors.primary }]}>
                   Studio Flashcard
                 </Text>
-                <Text style={[styles.gameTagline, { color: colors.textSecondary }]}>
+                <Text style={[styles.gameTagline, { color: "#0284C7" }]}>
                   Ripasso attivo senza timer
                 </Text>
               </View>
@@ -639,7 +636,7 @@ export default function LibraryScreen({
 
             <View style={styles.gameFooterRow}>
               <View style={styles.pillStat}>
-                <Text style={[styles.pillStatText, { color: colors.goldDark }]}>
+                <Text style={[styles.pillStatText, { color: "#0284C7" }]}>
                   {wordsDiscovered.length > 0
                     ? `${wordsDiscovered.length} parole disponibili`
                     : "Nessuna parola scoperta"}
@@ -673,16 +670,16 @@ export default function LibraryScreen({
               <View
                 style={[
                   styles.gameIconBox,
-                  { backgroundColor: `${colors.gold}20`, borderColor: colors.goldDark },
+                  { backgroundColor: isDark ? "rgba(139, 92, 246, 0.18)" : "#EDE9FE", borderColor: "#8B5CF6" },
                 ]}
               >
-                <Feather name="cpu" size={24} color={colors.goldDark} />
+                <MaterialCommunityIcons name="brain" size={26} color="#8B5CF6" />
               </View>
               <View style={styles.gameHeaderText}>
                 <Text style={[styles.gameName, { color: colors.primary }]}>
                   Ripasso Intelligente (SRS)
                 </Text>
-                <Text style={[styles.gameTagline, { color: colors.goldDark }]}>
+                <Text style={[styles.gameTagline, { color: "#8B5CF6" }]}>
                   Spaced Repetition • Priorità errori e parole fragili
                 </Text>
               </View>
@@ -694,17 +691,17 @@ export default function LibraryScreen({
 
             <View style={styles.gameFooterRow}>
               <View style={styles.pillStat}>
-                <Text style={[styles.pillStatText, { color: colors.goldDark }]}>
+                <Text style={[styles.pillStatText, { color: "#8B5CF6" }]}>
                   {srsDueCount} parole da consolidare
                 </Text>
               </View>
 
               <TouchableOpacity
-                style={[styles.playBtn, { backgroundColor: colors.primary }]}
+                style={[styles.playBtn, { backgroundColor: "#8B5CF6" }]}
                 onPress={() => onStartGame("srs")}
               >
-                <Text style={[styles.playBtnText, { color: colors.background, fontWeight: "800" }]}>
-                  Avvia Ripasso SRS
+                <Text style={[styles.playBtnText, { color: "#FFFFFF", fontWeight: "800" }]}>
+                  Avvia Ripasso
                 </Text>
               </TouchableOpacity>
             </View>
@@ -721,16 +718,16 @@ export default function LibraryScreen({
               <View
                 style={[
                   styles.gameIconBox,
-                  { backgroundColor: "#FFF3E0", borderColor: "#FF9800" },
+                  { backgroundColor: isDark ? "rgba(234, 88, 12, 0.18)" : "#FFEDD5", borderColor: "#EA580C" },
                 ]}
               >
-                <Ionicons name="flame" size={24} color="#FF9800" />
+                <Ionicons name="flame" size={24} color="#EA580C" />
               </View>
               <View style={styles.gameHeaderText}>
                 <Text style={[styles.gameName, { color: colors.primary }]}>
                   Blitz Crono
                 </Text>
-                <Text style={[styles.gameTagline, { color: colors.textSecondary }]}>
+                <Text style={[styles.gameTagline, { color: "#EA580C" }]}>
                   30 secondi totali • Moltiplicatore combo
                 </Text>
               </View>
@@ -743,18 +740,18 @@ export default function LibraryScreen({
             <View style={styles.gameFooterRow}>
               <View style={styles.pillStat}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Feather name="award" size={13} color={colors.goldDark} />
-                  <Text style={[styles.pillStatText, { color: colors.goldDark }]}>
+                  <Feather name="award" size={13} color="#EA580C" />
+                  <Text style={[styles.pillStatText, { color: "#EA580C" }]}>
                     Record: {blitzRecord}
                   </Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={[styles.playBtn, { backgroundColor: colors.gold }]}
+                style={[styles.playBtn, { backgroundColor: "#EA580C" }]}
                 onPress={() => onStartGame("blitz")}
               >
-                <Text style={[styles.playBtnText, { color: colors.primary, fontWeight: "800" }]}>
+                <Text style={[styles.playBtnText, { color: "#FFFFFF", fontWeight: "800" }]}>
                   Avvia Blitz
                 </Text>
               </TouchableOpacity>
@@ -772,16 +769,16 @@ export default function LibraryScreen({
               <View
                 style={[
                   styles.gameIconBox,
-                  { backgroundColor: "#E8F5E9", borderColor: "#4CAF50" },
+                  { backgroundColor: isDark ? "rgba(5, 150, 105, 0.18)" : "#D1FAE5", borderColor: "#059669" },
                 ]}
               >
-                <Feather name="shield" size={24} color="#4CAF50" />
+                <Feather name="shield" size={24} color="#059669" />
               </View>
               <View style={styles.gameHeaderText}>
                 <Text style={[styles.gameName, { color: colors.primary }]}>
                   Sfida Sopravvivenza
                 </Text>
-                <Text style={[styles.gameTagline, { color: colors.textSecondary }]}>
+                <Text style={[styles.gameTagline, { color: "#059669" }]}>
                   3 vite • Tutto il dizionario
                 </Text>
               </View>
@@ -794,18 +791,18 @@ export default function LibraryScreen({
             <View style={styles.gameFooterRow}>
               <View style={styles.pillStat}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Feather name="award" size={13} color={colors.goldDark} />
-                  <Text style={[styles.pillStatText, { color: colors.goldDark }]}>
+                  <Feather name="award" size={13} color="#059669" />
+                  <Text style={[styles.pillStatText, { color: "#059669" }]}>
                     Record: {randomRecord}
                   </Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={[styles.playBtn, { backgroundColor: colors.primary }]}
+                style={[styles.playBtn, { backgroundColor: "#059669" }]}
                 onPress={() => onStartGame("random")}
               >
-                <Text style={[styles.playBtnText, { color: colors.background }]}>
+                <Text style={[styles.playBtnText, { color: "#FFFFFF" }]}>
                   Gioca
                 </Text>
               </TouchableOpacity>
@@ -823,20 +820,16 @@ export default function LibraryScreen({
               <View
                 style={[
                   styles.gameIconBox,
-                  { backgroundColor: "#FFF8E1", borderColor: colors.gold },
+                  { backgroundColor: isDark ? "rgba(217, 119, 6, 0.18)" : "#FEF3C7", borderColor: "#D97706" },
                 ]}
               >
-                <Image
-                  source={require("@/assets/images/star-icon.png")}
-                  style={{ width: 22, height: 22 }}
-                  resizeMode="contain"
-                />
+                <Ionicons name="star" size={22} color="#D97706" />
               </View>
               <View style={styles.gameHeaderText}>
                 <Text style={[styles.gameName, { color: colors.primary }]}>
                   Quiz dei Preferiti
                 </Text>
-                <Text style={[styles.gameTagline, { color: colors.textSecondary }]}>
+                <Text style={[styles.gameTagline, { color: "#D97706" }]}>
                   Sessione mirata sui tuoi segnalibri
                 </Text>
               </View>
@@ -848,7 +841,7 @@ export default function LibraryScreen({
 
             <View style={styles.gameFooterRow}>
               <View style={styles.pillStat}>
-                <Text style={[styles.pillStatText, { color: colors.goldDark }]}>
+                <Text style={[styles.pillStatText, { color: "#D97706" }]}>
                   {bookmarkedWords.length < 2
                     ? "Salva almeno 2 parole"
                     : `${bookmarkedWords.length} parole salvate`}
@@ -958,7 +951,7 @@ export default function LibraryScreen({
               {/* Individual categories */}
               {ALL_CATEGORIES.map((cat) => {
                 const count = wordsDiscovered.filter((w) => w.category === cat).length;
-                const isSelected = !isAllCategoriesActive && selectedCategories.includes(cat);
+                const isSelected = isAllCategoriesActive || selectedCategories.includes(cat);
                 const catColor = getCategoryColor(cat);
 
                 return (

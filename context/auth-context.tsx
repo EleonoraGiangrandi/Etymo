@@ -19,6 +19,7 @@ type AuthContextType = {
   loading: boolean;
   updateProfile: (updates: { full_name?: string; avatar_url?: string }) => Promise<{ error: any }>;
   resetProfile: () => Promise<void>;
+  reloadProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,6 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem(LOCAL_USER_AVATAR_KEY);
   };
 
+  const reloadProfile = async () => {
+    await loadLocalProfile();
+  };
+
   const user: UserProfile = {
     id: 'local_user',
     email: '',
@@ -86,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     updateProfile,
     resetProfile,
+    reloadProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -327,7 +327,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   ]}
                 >
                   <Text style={[styles.explanationTitle, { color: colors.goldDark }]}>
-                    {selectedQuizOption === 1 ? "✨ Esatto! Ecco la storia:" : "💡 Ecco l'origine reale:"}
+                    {selectedQuizOption === 1 ? "Esatto! Ecco la storia:" : "Ecco l'origine reale:"}
                   </Text>
                   <Text style={[styles.explanationText, { color: colors.primary }]}>
                     A Roma, chi aspirava a una carica indossava una toga sbiancata con gesso (<Text style={{ fontStyle: "italic", fontWeight: "700" }}>toga candida</Text>) per simboleggiare purezza morale e trasparenza.

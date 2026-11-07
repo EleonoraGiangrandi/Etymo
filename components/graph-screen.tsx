@@ -48,19 +48,10 @@ function buildGraphData(wordsDiscovered: WordEntry[], activeWords: WordEntry[]) 
     });
   });
 
-  // Add related-word nodes + edges
+  // Add related-word edges between existing words
   activeWords.forEach((w) => {
-    w.relatedWords.forEach((relId) => {
-      if (!nodeSet.has(relId)) {
-        const rel = wordById.get(relId);
-        nodeSet.set(relId, {
-          id: relId,
-          word: rel?.word ?? relId.charAt(0).toUpperCase() + relId.slice(1),
-          isLearned: discoveredIds.has(relId),
-          isMainWord: !!rel,
-          shortEtymology: rel?.shortEtymology ?? "",
-        });
-      }
+    (w.relatedWords || []).forEach((relId) => {
+      if (!wordById.has(relId)) return; // Nessun nodo fantasma
       const key = [w.id, relId].sort().join("|");
       if (!linkSet.has(key)) {
         linkSet.add(key);
@@ -474,8 +465,11 @@ function draw(){
     ctx.beginPath();
     ctx.moveTo(l.s.x, l.s.y);
     ctx.quadraticCurveTo(mx, my, l.t.x, l.t.y);
-    ctx.strokeStyle=l.learned?'${edgeLearned}':'${edgeDefault}';
-    ctx.lineWidth=l.learned?1.5*lw:0.75*lw;
+    var isConnectedToSel = selNode && (l.s.id === selNode.id || l.t.id === selNode.id);
+    ctx.strokeStyle = isConnectedToSel
+      ? '${edgeLearned}'
+      : (l.learned ? '${edgeLearned}' : '${edgeDefault}');
+    ctx.lineWidth = isConnectedToSel ? 2.5 * lw : (l.learned ? 1.5 * lw : 0.75 * lw);
     ctx.stroke();
   });
 

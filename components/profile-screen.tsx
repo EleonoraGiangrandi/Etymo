@@ -1,5 +1,6 @@
 import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
-import { WordEntry, WORDS } from "@/constants/words";
+import { WordEntry, WORDS, getWordOfTheDay } from "@/constants/words";
+import { ALL_BADGES, Badge } from "@/constants/badges";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -36,8 +37,8 @@ type Props = {
   bookmarkedWords: WordEntry[];
   onSelectWord: (word: WordEntry) => void;
   wordMastery: Record<string, number>;
-  onResetOnboarding?: () => void;
   wordsList?: WordEntry[];
+  blitzRecord?: number;
   onExportBackup?: () => Promise<string>;
   onImportBackup?: (json: string) => Promise<{ success: boolean; error?: string }>;
   onResetAllData?: () => Promise<void>;
@@ -50,15 +51,15 @@ export default function ProfileScreen({
   bookmarkedWords,
   onSelectWord,
   wordMastery,
-  onResetOnboarding,
   wordsList,
+  blitzRecord = 0,
   onExportBackup,
   onImportBackup,
   onResetAllData,
 }: Props) {
   const totalWords = wordsList?.length || WORDS.length;
   const { colors, isDark, toggleTheme } = useTheme();
-  const { user, updateProfile, resetProfile } = useAuth();
+  const { user, updateProfile, resetProfile, reloadProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(
     user?.user_metadata?.full_name || "Studioso Errante",
@@ -74,6 +75,7 @@ export default function ProfileScreen({
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState("");
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showBadgesModal, setShowBadgesModal] = useState(false);
 
   useEffect(() => {
     loadNotificationSettings();
@@ -90,31 +92,6 @@ export default function ProfileScreen({
     const time = await AsyncStorage.getItem(NOTIF_TIME_KEY);
     if (enabled !== null) setNotifications(enabled === "true");
     if (time !== null) setNotificationTime(new Date(time));
-  };
-
-  const handleResetOnboarding = async () => {
-    Alert.alert(
-      "Rivedi Introduzione",
-      "Vuoi visualizzare subito l'introduzione dell'applicazione?",
-      [
-        { text: "Annulla", style: "cancel" },
-        { 
-          text: "Sì, mostra", 
-          onPress: async () => {
-            if (onResetOnboarding) {
-              onResetOnboarding();
-            } else {
-              try {
-                await AsyncStorage.removeItem("@has_seen_onboarding");
-                Alert.alert("Configurato!", "Riavvia l'applicazione per vedere l'introduzione.");
-              } catch (e) {
-                Alert.alert("Errore", "Impossibile resettare l'introduzione.");
-              }
-            }
-          }
-        }
-      ]
-    );
   };
 
   const handleToggleNotifications = async (value: boolean) => {
@@ -206,12 +183,14 @@ export default function ProfileScreen({
           onPress: async () => {
             setLoading(true);
             const res = await onImportBackup(importText.trim());
-            setLoading(false);
             if (res.success) {
+              await reloadProfile();
+              setLoading(false);
               setShowImportModal(false);
               setImportText("");
               Alert.alert("Completato!", "I tuoi dati sono stati ripristinati con successo!");
             } else {
+              setLoading(false);
               Alert.alert("Errore", res.error || "Impossibile leggere il file di backup.");
             }
           },
@@ -238,6 +217,7 @@ export default function ProfileScreen({
                 await AsyncStorage.clear();
               }
               await resetProfile();
+              await reloadProfile();
               Alert.alert("Completato", "Tutti i dati locali sono stati azzerati.");
             } catch (err: any) {
               Alert.alert("Errore", "Impossibile azzerare i dati: " + err.message);
@@ -248,6 +228,41 @@ export default function ProfileScreen({
         },
       ]
     );
+  };
+
+  const masterCount = Object.values(wordMastery).filter((v) => v >= 3).length;
+
+  const getBadgeStatus = (badge: Badge): { isUnlocked: boolean; label: string } => {
+    let isUnlocked = false;
+    let label = "";
+
+    switch (badge.category) {
+      case "words":
+        isUnlocked = wordsDiscovered.length >= badge.req;
+        label = isUnlocked ? "Sbloccato" : `${wordsDiscovered.length}/${badge.req} parole`;
+        break;
+      case "streak":
+        isUnlocked = streak >= badge.req;
+        label = isUnlocked ? "Sbloccato" : `${streak}/${badge.req} giorni`;
+        break;
+      case "combo":
+        isUnlocked = maxCombo >= badge.req;
+        label = isUnlocked ? "Sbloccato" : `${maxCombo}/${badge.req} combo`;
+        break;
+      case "blitz":
+        isUnlocked = blitzRecord >= badge.req;
+        label = isUnlocked ? "Sbloccato" : `${blitzRecord}/${badge.req} punti`;
+        break;
+      case "bookmarks":
+        isUnlocked = bookmarkedWords.length >= badge.req;
+        label = isUnlocked ? "Sbloccato" : `${bookmarkedWords.length}/${badge.req} salvate`;
+        break;
+      case "mastery":
+        isUnlocked = masterCount >= badge.req;
+        label = isUnlocked ? "Sbloccato" : `${masterCount}/${badge.req} maestrie`;
+        break;
+    }
+    return { isUnlocked, label };
   };
 
   return (
@@ -276,7 +291,11 @@ export default function ProfileScreen({
                     ? { uri: user.user_metadata.avatar_url }
                     : require("@/assets/images/mascotte.png")
                 }
-                style={styles.avatar}
+                style={[
+                  styles.avatar,
+                  !user?.user_metadata?.avatar_url && styles.defaultMascotteAvatar,
+                ]}
+                resizeMode={user?.user_metadata?.avatar_url ? "cover" : "contain"}
               />
             )}
           </View>
@@ -384,82 +403,120 @@ export default function ProfileScreen({
         </View>
       </View>
 
-      {/* Badges Section */}
+      {/* Badges Section Summary Card */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-          Traguardi
-        </Text>
-        <View style={styles.badgesGrid}>
-          <View
-            style={[
-              styles.badge,
-              wordsDiscovered.length < 3 && styles.lockedBadge,
-              { 
-                backgroundColor: colors.surface, 
-                borderColor: wordsDiscovered.length >= 3 ? colors.gold : colors.borderLight 
-              },
-            ]}
-          >
-            <Feather
-              name="award"
-              size={26}
-              color={wordsDiscovered.length >= 3 ? colors.goldDark : colors.textTertiary}
-              style={{ marginBottom: 4 }}
-            />
-            <Text style={[styles.badgeName, { color: colors.primary }]}>
-              Novizio
-            </Text>
-            <Text style={[styles.badgeReq, { color: wordsDiscovered.length >= 3 ? colors.goldDark : colors.textTertiary }]}>
-              {wordsDiscovered.length >= 3 ? "Sbloccato" : "3 parole"}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.badge,
-              wordsDiscovered.length < Math.floor(totalWords * 0.5) && styles.lockedBadge,
-              {
-                backgroundColor: colors.surface,
-                borderColor: wordsDiscovered.length >= Math.floor(totalWords * 0.5) ? colors.gold : colors.borderLight,
-              },
-            ]}
-          >
-            <Feather
-              name="compass"
-              size={26}
-              color={wordsDiscovered.length >= Math.floor(totalWords * 0.5) ? colors.goldDark : colors.textTertiary}
-              style={{ marginBottom: 4 }}
-            />
-            <Text style={[styles.badgeName, { color: colors.primary }]}>
-              Archeologo
-            </Text>
-            <Text style={[styles.badgeReq, { color: wordsDiscovered.length >= Math.floor(totalWords * 0.5) ? colors.goldDark : colors.textTertiary }]}>
-              {wordsDiscovered.length >= Math.floor(totalWords * 0.5) ? "Sbloccato" : `${Math.floor(totalWords * 0.5)} parole`}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.badge,
-              wordsDiscovered.length < Math.floor(totalWords * 0.8) && styles.lockedBadge,
-              {
-                backgroundColor: colors.surface,
-                borderColor: wordsDiscovered.length >= Math.floor(totalWords * 0.8) ? colors.gold : colors.borderLight,
-              },
-            ]}
-          >
-            <Feather
-              name="shield"
-              size={26}
-              color={wordsDiscovered.length >= Math.floor(totalWords * 0.8) ? colors.goldDark : colors.textTertiary}
-              style={{ marginBottom: 4 }}
-            />
-            <Text style={[styles.badgeName, { color: colors.primary }]}>
-              Guerriero
-            </Text>
-            <Text style={[styles.badgeReq, { color: wordsDiscovered.length >= Math.floor(totalWords * 0.8) ? colors.goldDark : colors.textTertiary }]}>
-              {wordsDiscovered.length >= Math.floor(totalWords * 0.8) ? "Sbloccato" : `${Math.floor(totalWords * 0.8)} parole`}
-            </Text>
-          </View>
+        <View style={styles.badgeSectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+            Traguardi
+          </Text>
         </View>
+
+        <TouchableOpacity
+          style={[
+            styles.badgeSummaryCard,
+            { backgroundColor: colors.surface, borderColor: colors.borderLight },
+          ]}
+          onPress={() => setShowBadgesModal(true)}
+          activeOpacity={0.7}
+        >
+          <View
+            style={[
+              styles.badgeSummaryIconBox,
+              {
+                backgroundColor: isDark ? "rgba(212, 175, 55, 0.15)" : "rgba(212, 175, 55, 0.12)",
+                borderColor: isDark ? "rgba(212, 175, 55, 0.3)" : colors.gold,
+              },
+            ]}
+          >
+            <Ionicons name="trophy" size={26} color={colors.goldDark} />
+          </View>
+
+          <View style={styles.badgeSummaryContent}>
+            <View style={styles.badgeSummaryHeaderRow}>
+              <Text
+                style={[styles.badgeSummaryTitle, { color: colors.primary }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Traguardi & Onorificenze
+              </Text>
+              <View
+                style={[
+                  styles.badgePillCount,
+                  {
+                    backgroundColor: isDark ? "rgba(212, 175, 55, 0.18)" : "rgba(212, 175, 55, 0.12)",
+                    borderColor: colors.gold,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.badgePillCountText, { color: colors.goldDark }]}>
+                  {ALL_BADGES.filter((b) => getBadgeStatus(b).isUnlocked).length}/{ALL_BADGES.length}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={[styles.badgeSummarySubtitle, { color: colors.textSecondary }]}>
+              Tocca per visualizzare la bacheca completa e i progressi
+            </Text>
+
+            {/* Mini preview icons */}
+            <View style={styles.badgeMiniRow}>
+              {ALL_BADGES.slice(0, 5).map((b) => {
+                const { isUnlocked } = getBadgeStatus(b);
+                return (
+                  <View
+                    key={b.id}
+                    style={[
+                      styles.badgeMiniCircle,
+                      {
+                        backgroundColor: isUnlocked
+                          ? isDark
+                            ? "rgba(212, 175, 55, 0.18)"
+                            : "rgba(212, 175, 55, 0.12)"
+                          : isDark
+                          ? "rgba(255, 255, 255, 0.05)"
+                          : "#F3F4F6",
+                        borderColor: isUnlocked ? colors.gold : colors.borderLight,
+                      },
+                    ]}
+                  >
+                    {b.iconFamily === "Ionicons" ? (
+                      <Ionicons
+                        name={b.iconName as any}
+                        size={15}
+                        color={isUnlocked ? colors.goldDark : colors.textTertiary}
+                      />
+                    ) : (
+                      <Feather
+                        name={b.iconName as any}
+                        size={15}
+                        color={isUnlocked ? colors.goldDark : colors.textTertiary}
+                      />
+                    )}
+                  </View>
+                );
+              })}
+              {ALL_BADGES.length > 5 && (
+                <View
+                  style={[
+                    styles.badgeMiniCircle,
+                    {
+                      backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "#F3F4F6",
+                      borderColor: colors.borderLight,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.badgeMiniMoreText, { color: colors.textTertiary }]}>
+                    +{ALL_BADGES.length - 5}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <Feather name="chevron-right" size={20} color={colors.textTertiary} />
+        </TouchableOpacity>
       </View>
 
       {/* Settings Section */}
@@ -516,17 +573,6 @@ export default function ProfileScreen({
               trackColor={{ false: colors.border, true: colors.gold }}
             />
           </View>
-
-          <TouchableOpacity 
-            style={[styles.row, { borderTopWidth: 1, borderColor: colors.borderLight }]}
-            onPress={handleResetOnboarding}
-          >
-            <View>
-              <Text style={[styles.rowLabel, { color: colors.primary }]}>Rivedi Introduzione</Text>
-              <Text style={[styles.rowSub, { color: colors.textTertiary }]}>Mostra di nuovo le schermate iniziali</Text>
-            </View>
-            <Feather name="play-circle" size={18} color={colors.goldDark} />
-          </TouchableOpacity>
 
           <TouchableOpacity 
             style={[styles.row, { borderTopWidth: 1, borderColor: colors.borderLight }]}
@@ -715,28 +761,191 @@ export default function ProfileScreen({
                 Puoi esportare un backup JSON completo in qualsiasi momento oppure azzerare i tuoi dati con un solo tocco dalla sezione 'Dati e Backup'.{"\n\n"}
                 <Text style={{ fontWeight: "700", color: colors.primary }}>5. Termini di Servizio{"\n"}</Text>
                 Etymo è fornita per finalità educative e culturali. I testi e le note etimologiche sono curati a scopo divulgativo. Grazie per far parte di questa avventura linguistica!{"\n\n"}
-                <Text style={{ fontWeight: "700", color: colors.primary }}>6. Open Source & Contatti{"\n"}</Text>
-                Il codice open source è disponibile qui:{" "}
+                <Text style={{ fontWeight: "700", color: colors.primary }}>6. Contatti, Trasparenza & Open Source{"\n"}</Text>
+                Etymo è un progetto indipendente e open source, pensato con passione per riscoprire la bellezza e le radici storiche delle parole che usiamo ogni giorno.{"\n\n"}
+                • <Text style={{ fontWeight: "700", color: colors.primary }}>Codice Sorgente:</Text> Puoi consultare liberamente il repository, esplorare l&apos;architettura o contribuire al progetto su{" "}
                 <Text
-                  style={{ color: colors.goldDark, textDecorationLine: "underline" }}
-                  onPress={() => Linking.openURL("https://github.com/EleonoraGiangrandi/Etymo.git").catch(() => {})}
+                  style={{ color: colors.goldDark, textDecorationLine: "underline", fontWeight: "700" }}
+                  onPress={() => Linking.openURL("https://github.com/EleonoraGiangrandi/Etymo").catch(() => {})}
                 >
-                  https://github.com/EleonoraGiangrandi/Etymo.git
+                  GitHub (EleonoraGiangrandi/Etymo)
                 </Text>
-                {"\n\n"}
-                Se vuoi dare un feedback, consigli ecc. questo è il contatto:{" "}
+                .{"\n\n"}
+                • <Text style={{ fontWeight: "700", color: colors.primary }}>Feedback & Suggerimenti:</Text> Hai idee per nuovi vocaboli, curiosità storiche o riscontri sull&apos;applicazione? Saremo lieti di leggerti all&apos;indirizzo{" "}
                 <Text
-                  style={{ color: colors.goldDark, textDecorationLine: "underline" }}
-                  onPress={() => Linking.openURL("mailto:app.breasy@gmail.com").catch(() => {})}
+                  style={{ color: colors.goldDark, textDecorationLine: "underline", fontWeight: "700" }}
+                  onPress={() => Linking.openURL("mailto:app.breasy@gmail.com?subject=Feedback%20Etymo").catch(() => {})}
                 >
                   app.breasy@gmail.com
                 </Text>
+                . Risponderemo con piacere!
               </Text>
             </ScrollView>
 
             <TouchableOpacity
               style={[styles.privacyCloseBtn, { backgroundColor: colors.gold }]}
               onPress={() => setShowPrivacyModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.privacyCloseBtnText, { color: "#322214" }]}>Chiudi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Badges Modal */}
+      <Modal
+        visible={showBadgesModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowBadgesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          {/* Backdrop tap to close */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowBadgesModal(false)}
+          />
+
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+                height: "82%",
+                maxHeight: "85%",
+              },
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.badgesModalHeaderTitleBox}>
+                <Ionicons name="trophy" size={24} color={colors.goldDark} style={{ flexShrink: 0 }} />
+                <View style={{ flex: 1, marginRight: SPACING.xs }}>
+                  <Text
+                    style={[styles.modalTitle, { color: colors.primary, fontSize: 17 }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    Traguardi & Onorificenze
+                  </Text>
+                  <Text style={{ fontFamily: FONTS.sans, fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>
+                    {ALL_BADGES.filter((b) => getBadgeStatus(b).isUnlocked).length} di {ALL_BADGES.length} sbloccati
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowBadgesModal(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={[
+                  styles.modalCloseCircle,
+                  { backgroundColor: colors.background, borderColor: colors.borderLight, flexShrink: 0 },
+                ]}
+                accessibilityLabel="Chiudi traguardi"
+              >
+                <Feather name="x" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              style={{ flex: 1, marginVertical: 8 }}
+              contentContainerStyle={styles.badgesModalGrid}
+              nestedScrollEnabled={true}
+            >
+              {ALL_BADGES.map((b) => {
+                const { isUnlocked, label } = getBadgeStatus(b);
+                return (
+                  <View
+                    key={b.id}
+                    style={[
+                      styles.modalBadgeCard,
+                      !isUnlocked && styles.lockedBadge,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: isUnlocked ? colors.gold : colors.borderLight,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.modalBadgeIconCircle,
+                        {
+                          backgroundColor: isUnlocked
+                            ? isDark
+                              ? "rgba(212, 175, 55, 0.18)"
+                              : "rgba(212, 175, 55, 0.12)"
+                            : isDark
+                            ? "rgba(255, 255, 255, 0.05)"
+                            : "#F3F4F6",
+                          borderColor: isUnlocked ? colors.gold : colors.borderLight,
+                        },
+                      ]}
+                    >
+                      {b.iconFamily === "Ionicons" ? (
+                        <Ionicons
+                          name={b.iconName as any}
+                          size={24}
+                          color={isUnlocked ? colors.goldDark : colors.textTertiary}
+                        />
+                      ) : (
+                        <Feather
+                          name={b.iconName as any}
+                          size={24}
+                          color={isUnlocked ? colors.goldDark : colors.textTertiary}
+                        />
+                      )}
+                    </View>
+
+                    <Text
+                      style={[styles.modalBadgeName, { color: colors.primary }]}
+                      numberOfLines={1}
+                    >
+                      {b.name}
+                    </Text>
+
+                    <Text
+                      style={[styles.modalBadgeDesc, { color: colors.textSecondary }]}
+                      numberOfLines={2}
+                    >
+                      {b.desc}
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.badgeStatusPill,
+                        {
+                          backgroundColor: isUnlocked
+                            ? isDark
+                              ? "rgba(212, 175, 55, 0.18)"
+                              : "rgba(212, 175, 55, 0.12)"
+                            : isDark
+                            ? "rgba(255, 255, 255, 0.06)"
+                            : "#F3F4F6",
+                          borderColor: isUnlocked ? colors.gold : colors.borderLight,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.badgeStatusText,
+                          { color: isUnlocked ? colors.goldDark : colors.textTertiary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {label}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.privacyCloseBtn, { backgroundColor: colors.gold }]}
+              onPress={() => setShowBadgesModal(false)}
               activeOpacity={0.8}
             >
               <Text style={[styles.privacyCloseBtnText, { color: "#322214" }]}>Chiudi</Text>
@@ -782,6 +991,11 @@ const styles = StyleSheet.create({
   avatar: {
     width: "100%",
     height: "100%",
+  },
+  defaultMascotteAvatar: {
+    width: "82%",
+    height: "82%",
+    transform: [{ translateY: -2 }],
   },
   editBadge: {
     position: "absolute",
@@ -885,21 +1099,155 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginLeft: SPACING.xs,
   },
+  badgeSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  badgeSummaryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.md,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  badgeSummaryIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeSummaryContent: {
+    flex: 1,
+    gap: 4,
+  },
+  badgeSummaryHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  badgeSummaryTitle: {
+    flex: 1,
+    fontFamily: FONTS.serif,
+    fontSize: 15,
+    fontWeight: "700",
+    marginRight: 4,
+  },
+  badgeSummarySubtitle: {
+    fontFamily: FONTS.sans,
+    fontSize: 12,
+  },
+  badgePillCount: {
+    flexShrink: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+  },
+  badgePillCountText: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  badgeMiniRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  badgeMiniCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeMiniMoreText: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  badgesModalHeaderTitleBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    marginRight: SPACING.xs,
+  },
+  badgesModalGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    justifyContent: "space-between",
+  },
+  modalBadgeCard: {
+    width: "48%",
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+    alignItems: "center",
+    gap: 4,
+    ...SHADOWS.sm,
+  },
+  modalBadgeIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  modalBadgeName: {
+    fontFamily: FONTS.sans,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modalBadgeDesc: {
+    fontFamily: FONTS.sans,
+    fontSize: 11,
+    textAlign: "center",
+    lineHeight: 14,
+    minHeight: 28,
+  },
+  badgeStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    borderWidth: 0.5,
+    marginTop: 4,
+  },
+  badgeStatusText: {
+    fontFamily: FONTS.sans,
+    fontSize: 10,
+    fontWeight: "700",
+  },
   badgesGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: SPACING.sm,
   },
   badge: {
-    flex: 1,
+    width: "31%",
+    minWidth: 100,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    padding: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
     alignItems: "center",
     gap: 4,
     ...SHADOWS.sm,
   },
   lockedBadge: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
   badgeIcon: {
     fontSize: 28,

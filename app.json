@@ -4,9 +4,13 @@
     "slug": "Etymo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icon.png",
     "scheme": "etymo",
     "userInterfaceStyle": "automatic",
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#D4AF37"
+    },
     "ios": {
       "bundleIdentifier": "com.eleonora.etymo",
       "buildNumber": "1",
@@ -21,8 +25,8 @@
       "package": "com.eleonora.etymo",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/icon.png"
+        "backgroundColor": "#FDFCF8",
+        "foregroundImage": "./assets/icon.png"
       },
       "permissions": [
         "POST_NOTIFICATIONS",
@@ -34,7 +38,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       [
@@ -57,7 +61,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon.png",
+          "image": "./assets/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -72,7 +76,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/icon.png",
           "color": "#D4AF37"
         }
       ]

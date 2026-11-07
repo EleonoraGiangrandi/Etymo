@@ -1,5 +1,5 @@
 import { FONTS, RADIUS, SHADOWS, SPACING } from "@/constants/theme";
-import { WordEntry, WORDS } from "@/constants/words";
+import { WordEntry, WORDS, getCategoryLabel } from "@/constants/words";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -199,7 +199,7 @@ export default function HomeScreen({
                         { color: colors.textTertiary },
                       ]}
                     >
-                      {word.category}
+                      {getCategoryLabel(word.category)}
                     </Text>
                   </View>
                   <Text

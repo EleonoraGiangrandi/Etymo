@@ -1,20 +1,12 @@
 import React from 'react';
 import { FlexWidget, TextWidget, ImageWidget } from 'react-native-android-widget';
-import { WORDS } from '../constants/words';
-
-// Deterministic selection of the word of the day based on the calendar date
-function getWordOfTheDay() {
-  const today = new Date();
-  const dateHash = today.getFullYear() * 1000 + today.getMonth() * 100 + today.getDate();
-  const index = dateHash % WORDS.length;
-  return WORDS[index];
-}
+import { WORDS, getWordOfTheDay } from '../constants/words';
 
 function getStorySnippet(story: string) {
-  if (story.length <= 95) return story;
-  const trimmed = story.substring(0, 95);
+  if (story.length <= 48) return story;
+  const trimmed = story.substring(0, 48);
   const lastSpace = trimmed.lastIndexOf(' ');
-  if (lastSpace > 75) {
+  if (lastSpace > 32) {
     return story.substring(0, lastSpace) + '...';
   }
   return trimmed + '...';
@@ -36,36 +28,36 @@ export function WordOfTheDayWidget(props?: { wordEntry?: any }) {
         alignItems: 'flex-end',
         backgroundColor: '#FDFCF8', // Parchment from the app
         borderRadius: 16,
-        paddingTop: 12,
-        paddingLeft: 12,
-        paddingRight: 20,
-        paddingBottom: 0,
+        paddingTop: 14,
+        paddingLeft: 16,
+        paddingRight: 24,
+        paddingBottom: 8,
         borderWidth: 1.5,
         borderColor: '#E8E4D9', // Border color from the app
       },
     },
     [
-      // Left Section: Image container
+      // Left Section: Colossal lens mascot illustration attached to bottom border
       React.createElement(
         FlexWidget,
         {
           key: 'left-section',
           style: {
-            width: 130,
-            height: 170,
+            width: 108,
+            height: 'match_parent',
             justifyContent: 'flex-end',
             alignItems: 'center',
-            marginRight: 12,
+            marginRight: 18,
           },
         },
         React.createElement(ImageWidget, {
-          image: require('../assets/images/lens.png'),
-          imageWidth: 130,
-          imageHeight: 170,
+          image: require('../assets/images/lens_widget.png'),
+          imageWidth: 104,
+          imageHeight: 180,
         })
       ),
 
-      // Right Section: Text details
+      // Right Section: Text details with generous breathing space
       React.createElement(
         FlexWidget,
         {
@@ -75,7 +67,8 @@ export function WordOfTheDayWidget(props?: { wordEntry?: any }) {
             height: 'match_parent',
             flexDirection: 'column',
             justifyContent: 'center',
-            paddingBottom: 12,
+            paddingTop: 4,
+            paddingBottom: 4,
           },
         },
         [
@@ -83,7 +76,7 @@ export function WordOfTheDayWidget(props?: { wordEntry?: any }) {
             key: 'word-title',
             text: wordEntry.word.toUpperCase(),
             style: {
-              fontSize: 18,
+              fontSize: 19,
               fontFamily: 'serif',
               color: '#322214', // Ink/wood primary color
               fontWeight: 'bold',
@@ -93,12 +86,12 @@ export function WordOfTheDayWidget(props?: { wordEntry?: any }) {
             key: 'word-etymology',
             text: wordEntry.shortEtymology,
             style: {
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: 'serif',
               color: '#D4AF37', // Gold color from the app
               fontStyle: 'italic',
-              marginTop: 2,
-              marginBottom: 4,
+              marginTop: 3,
+              marginBottom: 6,
             },
           }),
           React.createElement(TextWidget, {
