@@ -54,8 +54,18 @@ export default function StoryScreen({
       return { display, found: false };
     }
 
-    return (word.relatedWords || []).map((id) => ({ id, ...resolveRelatedWord(id) }));
-  }, [word, wordsList]);
+    const resolved = (word.relatedWords || []).map((id) => ({ id, ...resolveRelatedWord(id) }));
+
+    // Mescola in ordine casuale (Fisher-Yates)
+    const shuffled = [...resolved];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Mostra un numero contenuto di collegamenti (3 o 4)
+    return shuffled.slice(0, Math.min(shuffled.length, 4));
+  }, [word.id, wordsList]);
 
   return (
     <ScrollView

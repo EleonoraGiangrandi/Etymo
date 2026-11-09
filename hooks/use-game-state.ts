@@ -110,7 +110,9 @@ export function useGameState(user?: { id: string; email?: string } | null) {
         if (unlockedBadgeIds.includes(badge.id)) continue;
 
         let unlocked = false;
-        if (badge.category === "words" && wordsCount >= badge.req) unlocked = true;
+        const targetReq =
+          badge.id === "maestro" ? (wordsList.length || badge.req) : badge.req;
+        if (badge.category === "words" && wordsCount >= targetReq) unlocked = true;
         if (badge.category === "streak" && currentStreak >= badge.req) unlocked = true;
         if (badge.category === "combo" && currentCombo >= badge.req) unlocked = true;
         if (badge.category === "blitz" && currentBlitz >= badge.req) unlocked = true;
@@ -124,7 +126,7 @@ export function useGameState(user?: { id: string; email?: string } | null) {
         }
       }
     },
-    [wordsDiscovered.length, dailyStreak, maxCombo, blitzRecord, bookmarkedWords.length, wordMastery, unlockedBadgeIds]
+    [wordsDiscovered.length, dailyStreak, maxCombo, blitzRecord, bookmarkedWords.length, wordMastery, unlockedBadgeIds, wordsList.length]
   );
 
   const buildCurrentState = useCallback(

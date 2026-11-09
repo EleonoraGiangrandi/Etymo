@@ -77,7 +77,10 @@ export default function GraphScreen({
   const webViewRef = useRef<any>(null);
   const { width, height } = Dimensions.get("window");
 
-  const activeWords = useMemo(() => wordsList || WORDS, [wordsList]);
+  const activeWords = useMemo(
+    () => (wordsList && wordsList.length > 0 ? wordsList : WORDS),
+    [wordsList]
+  );
   const totalWords = activeWords.length;
 
   // Stable key: only recompute graph when discovered set changes
@@ -217,7 +220,19 @@ body{background:${bg};overflow:hidden;touch-action:none;width:100vw;height:100vh
 (function(){
 /* ── Canvas setup ──────────────────────────────────────────────────── */
 var canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
-var dpr=window.devicePixelRatio||1,W=innerWidth,H=innerHeight;
+var dpr=window.devicePixelRatio||1;
+var defaultW=${Math.round(width)};
+var defaultH=${Math.round(height)};
+
+function getViewportWidth(){
+  return (window.innerWidth&&window.innerWidth>0)?window.innerWidth:(document.documentElement.clientWidth||defaultW||360);
+}
+function getViewportHeight(){
+  return (window.innerHeight&&window.innerHeight>0)?window.innerHeight:(document.documentElement.clientHeight||defaultH||640);
+}
+
+var W=getViewportWidth();
+var H=getViewportHeight();
 canvas.width=W*dpr;canvas.height=H*dpr;ctx.scale(dpr,dpr);
 
 /* ── Data ──────────────────────────────────────────────────────────── */
@@ -286,7 +301,7 @@ function placeGolden(arr, rMin, rMax, jitter){
   });
 }
 
-var base = Math.min(W, H) * 0.22;
+var base = Math.max(Math.min(W, H) * 0.22, 60);
 placeGolden(learnedNodes, 20,       base * 1.1, 20);
 placeGolden(mainNodes,    base * 1.1, base * 2.4, 35);
 placeGolden(relNodes,     base * 2.4, base * 3.8, 50);
@@ -339,17 +354,39 @@ function tick(){
 for(var _i=0;_i<400;_i++)tick();
 
 /* Auto-fit camera to bounding box */
-(function(){
+function fitCamera(){
   var mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
   nodes.forEach(function(n){var r=nr(n)+42;
     if(n.x-r<mnX)mnX=n.x-r;if(n.y-r<mnY)mnY=n.y-r;
     if(n.x+r>mxX)mxX=n.x+r;if(n.y+r>mxY)mxY=n.y+r;
   });
   cam.x=(mnX+mxX)/2;cam.y=(mnY+mxY)/2;
-  var gw=mxX-mnX+110,gh=mxY-mnY+120;
-  var z=Math.min(W/gw, H*0.72/gh, 1.15);
-  cam.zoom=Math.max(0.05,z);
-})();
+  var gw=Math.max(mxX-mnX+110, 100),gh=Math.max(mxY-mnY+120, 100);
+  var z=Math.min(W/gw, (H*0.72)/gh, 1.15);
+  cam.zoom=Math.max(0.12,z);
+}
+fitCamera();
+
+/* Gestione ridimensionamento dinamico WebView */
+function handleResize(){
+  var curW=getViewportWidth();
+  var curH=getViewportHeight();
+  if(curW>0&&curH>0&&(curW!==W||curH!==H||canvas.width<=0)){
+    W=curW;
+    H=curH;
+    canvas.width=W*dpr;
+    canvas.height=H*dpr;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr,dpr);
+    CX=W/2;
+    CY=H*0.40;
+    fitCamera();
+  }
+}
+window.addEventListener('resize',handleResize);
+window.addEventListener('orientationchange',handleResize);
+setTimeout(handleResize, 100);
+setTimeout(handleResize, 350);
 
 /* ── Particles ──────────────────────────────────────────────────────── */
 var parts=[];
@@ -443,6 +480,10 @@ function hitNode(wx,wy){
 function draw(){
   /* Continue settling (4 ticks/frame until converged) */
   if(alpha>ALPHA_MIN){for(var k=0;k<4;k++)tick();}
+
+  if(W<=0||H<=0||canvas.width<=0){
+    handleResize();
+  }
 
   ctx.clearRect(0,0,W,H);
   ctx.save();
@@ -678,12 +719,18 @@ canvas.addEventListener('touchend',function(e){
       <View style={styles.graphContainer}>
         <WebView
           ref={webViewRef}
-          source={{ html: htmlContent }}
-          style={{ flex: 1, backgroundColor: "transparent" }}
+          source={{ html: htmlContent, baseUrl: "" }}
+          style={{ flex: 1, backgroundColor: isDark ? "#1A1A1A" : "#FDFBF7" }}
+          containerStyle={{ flex: 1, width: "100%", height: "100%" }}
+          androidLayerType="hardware"
+          renderToHardwareTextureAndroid={true}
           scrollEnabled={false}
-          javaScriptEnabled
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          scalesPageToFit={false}
           originWhitelist={["*"]}
           onMessage={handleWebViewMessage}
+          onContentProcessDidTerminate={() => webViewRef.current?.reload()}
         />
       </View>
     </View>
@@ -726,7 +773,7 @@ const styles = StyleSheet.create({
   legendLine: { width: 18, height: 2, borderRadius: 1 },
   legendText: { fontFamily: FONTS.sans, fontSize: 11 },
 
-  graphContainer: { flex: 1, position: "relative" },
+  graphContainer: { flex: 1, position: "relative", width: "100%", height: "100%", overflow: "hidden" },
 
   /* Locked overlay (paywall) */
   lockedOverlay: {

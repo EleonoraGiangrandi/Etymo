@@ -126,13 +126,15 @@ export default function LibraryScreen({
 
   // Statistics
   const totalDiscovered = wordsDiscovered.length;
-  const totalAvailable = wordsList.length;
+  const totalAvailable =
+    wordsList && wordsList.length > 0 ? wordsList.length : WORDS.length;
   const masteredCount = useMemo(() => {
     return Object.values(wordMastery).filter((lvl) => lvl >= 3).length;
   }, [wordMastery]);
 
   const srsDueCount = useMemo(() => {
-    return wordsList.filter((w) => (wordMastery[w.id] ?? 0) < 3).length;
+    const list = wordsList && wordsList.length > 0 ? wordsList : WORDS;
+    return list.filter((w) => (wordMastery[w.id] ?? 0) < 3).length;
   }, [wordsList, wordMastery]);
 
   const handleTabChange = (tab: "archive" | "academy") => {

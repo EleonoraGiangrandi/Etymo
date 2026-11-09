@@ -13,7 +13,19 @@ export const ROOT_FAMILIES: { name: string; root: string; label: string; wordIds
     name: "caput",
     root: "caput (testa)",
     label: "Stessa radice latina: caput (testa)",
-    wordIds: ["cappello", "capitale", "capriccio"],
+    wordIds: ["cappello", "capitale", "capriccio", "testa"],
+  },
+  {
+    name: "cappa",
+    root: "cappa (mantello con cappuccio)",
+    label: "Stessa radice latina tardo-antica: cappa (il mantello e il copricapo)",
+    wordIds: ["cappello", "cappella", "cappuccino"],
+  },
+  {
+    name: "sidera",
+    root: "sidus / sidera (le stelle e gli astri)",
+    label: "Stessa radice latina: sidera (il presagio e l'osservazione delle stelle)",
+    wordIds: ["considerare", "disastro"],
   },
   {
     name: "liber",
@@ -25,7 +37,7 @@ export const ROOT_FAMILIES: { name: string; root: string; label: string; wordIds
     name: "panis",
     root: "panis (pane)",
     label: "Stessa radice latina: panis (il nutrimento condiviso)",
-    wordIds: ["pane", "compagno"],
+    wordIds: ["pane", "compagno", "sandwich"],
   },
   {
     name: "sal",
@@ -49,7 +61,7 @@ export const ROOT_FAMILIES: { name: string; root: string; label: string; wordIds
     name: "skopein",
     root: "skopein (guardare/osservare)",
     label: "Stessa radice greca: skopein (lo strumento per osservare)",
-    wordIds: ["telescopio", "microscopio"],
+    wordIds: ["telescopio", "microscopio", "semaforo"],
   },
   {
     name: "mousa",
@@ -79,7 +91,25 @@ export const ROOT_FAMILIES: { name: string; root: string; label: string; wordIds
     name: "arab_math",
     root: "al- (prefisso arabo)",
     label: "Radice araba e matematica medievale",
-    wordIds: ["algebra", "algoritmo", "cifra"],
+    wordIds: ["algebra", "algoritmo", "cifra", "tariffa", "almanacco"],
+  },
+  {
+    name: "stips_pecunia",
+    root: "stips / moneta",
+    label: "Stessa sfera monetaria e retributiva romana",
+    wordIds: ["stipendio", "salario", "denaro", "pecunia"],
+  },
+  {
+    name: "graphia",
+    root: "graphia (scrittura/disegno)",
+    label: "Stessa radice greca: graphia (la scrittura o impressione)",
+    wordIds: ["fotografia", "archivio"],
+  },
+  {
+    name: "tele_phone",
+    root: "tēle (lontano)",
+    label: "Stessa radice greca: tēle (distanza nello spazio)",
+    wordIds: ["telefono", "telescopio"],
   },
 ];
 
@@ -101,6 +131,10 @@ export const THEMATIC_CLUSTERS: { id: string; label: string; wordIds: string[] }
       "corteo",
       "prigione",
       "finanza",
+      "stipendio",
+      "denaro",
+      "destra",
+      "sinistro",
     ],
   },
   {
@@ -118,27 +152,72 @@ export const THEMATIC_CLUSTERS: { id: string; label: string; wordIds: string[] }
       "idiota",
       "crisi",
       "labirinto",
+      "barbaro",
+      "panacea",
+      "magari",
     ],
   },
   {
     id: "grecia_teatro",
     label: "Grecia classica: teatro, poesia e arti sceniche",
-    wordIds: ["teatro", "tragedia", "commedia", "catastrofe", "poesia", "musica", "museo"],
+    wordIds: ["teatro", "tragedia", "commedia", "catastrofe", "poesia", "musica", "museo", "eco", "pantaloni"],
   },
   {
     id: "venezia_mare",
     label: "Venezia marinara: rotte dogali e commercio marittimo",
-    wordIds: ["ciao", "fiasco", "molo", "porto", "nave", "viaggio", "dogana", "magazzino", "serenata"],
+    wordIds: [
+      "ciao",
+      "fiasco",
+      "molo",
+      "porto",
+      "nave",
+      "viaggio",
+      "dogana",
+      "magazzino",
+      "serenata",
+      "quarantena",
+      "gazzetta",
+      "arsenale",
+      "darsena",
+      "ammiraglio",
+      "pantaloni",
+    ],
   },
   {
     id: "mondo_arabo",
     label: "Mondo arabo medievale: spezie, scambi e scienze",
-    wordIds: ["caffe", "zucchero", "arancio", "limone", "carciofo", "dogana", "magazzino", "algebra", "algoritmo", "cifra"],
+    wordIds: [
+      "caffe",
+      "zucchero",
+      "arancio",
+      "limone",
+      "carciofo",
+      "dogana",
+      "magazzino",
+      "algebra",
+      "algoritmo",
+      "cifra",
+      "tariffa",
+      "ammiraglio",
+      "arsenale",
+      "darsena",
+      "divano",
+      "cotone",
+      "sciroppo",
+      "zafferano",
+      "albicocca",
+      "nadir",
+      "zenit",
+      "scirocco",
+      "almanacco",
+      "giubba",
+      "melanzana",
+    ],
   },
   {
     id: "nuovo_mondo",
     label: "Nuovo Mondo: la rivoluzione botanica dopo il 1492",
-    wordIds: ["cioccolato", "pomodoro", "patata"],
+    wordIds: ["cioccolato", "pomodoro", "patata", "melanzana"],
   },
   {
     id: "calendario_romano",
@@ -156,62 +235,303 @@ export const THEMATIC_CLUSTERS: { id: string; label: string; wordIds: string[] }
       "marzo",
       "agosto",
       "tempo",
+      "almanacco",
     ],
   },
   {
     id: "sacro_mistero",
     label: "Mondo spirituale: sacro, inferi e credenze popolari",
-    wordIds: ["carnevale", "paradiso", "inferno", "angelo", "diavolo", "miracolo", "voto", "panico", "abracadabra", "pellegrino"],
+    wordIds: [
+      "carnevale",
+      "paradiso",
+      "inferno",
+      "angelo",
+      "diavolo",
+      "miracolo",
+      "voto",
+      "panico",
+      "abracadabra",
+      "pellegrino",
+      "panacea",
+      "eco",
+      "propaganda",
+      "cappella",
+    ],
   },
   {
     id: "arti_visive",
     label: "Botteghe d'arte e architettura rinascimentale",
-    wordIds: ["affresco", "pittura", "scultura", "architettura", "bozzetto", "stile", "caricatura", "museo"],
+    wordIds: [
+      "affresco",
+      "pittura",
+      "scultura",
+      "architettura",
+      "bozzetto",
+      "stile",
+      "caricatura",
+      "museo",
+      "fotografia",
+      "pixel",
+      "silhouette",
+      "matita",
+      "inchiostro",
+      "pagina",
+    ],
   },
   {
     id: "scienza_cosmo",
     label: "Astronomia e fisica: la scoperta dell'universo",
-    wordIds: ["spazio", "universo", "mondo", "pianeta", "galassia", "telescopio", "microscopio", "atomo", "energia", "elettricità"],
+    wordIds: [
+      "spazio",
+      "universo",
+      "mondo",
+      "pianeta",
+      "galassia",
+      "telescopio",
+      "microscopio",
+      "atomo",
+      "energia",
+      "elettricità",
+      "clima",
+      "nadir",
+      "zenit",
+      "almanacco",
+      "laser",
+      "influenza",
+      "considerare",
+      "disastro",
+    ],
   },
   {
     id: "medicina_cura",
     label: "Medicina antica e cura del corpo",
-    wordIds: ["chirurgo", "farmaco", "sintomo", "ospedale", "dieta", "virus", "epidemia", "malinconia"],
+    wordIds: [
+      "chirurgo",
+      "farmaco",
+      "sintomo",
+      "ospedale",
+      "dieta",
+      "virus",
+      "epidemia",
+      "malinconia",
+      "vaccino",
+      "quarantena",
+      "influenza",
+      "malaria",
+      "panacea",
+      "sciroppo",
+    ],
+  },
+  {
+    id: "corpo_anatomia",
+    label: "Anatomia e moti del corpo umano",
+    wordIds: [
+      "testa",
+      "muscolo",
+      "pupilla",
+      "clavicola",
+      "destra",
+      "sinistro",
+      "chirurgo",
+      "dieta",
+      "malinconia",
+      "atleta",
+    ],
   },
   {
     id: "spazi_dimora",
     label: "La casa e l'abitare: spazi e architetture domestiche",
-    wordIds: ["camera", "finestra", "corridoio", "balcone", "terrazza", "scala", "porta", "chiave", "palazzo"],
+    wordIds: [
+      "camera",
+      "finestra",
+      "corridoio",
+      "balcone",
+      "terrazza",
+      "scala",
+      "porta",
+      "chiave",
+      "palazzo",
+      "stanza",
+      "garage",
+      "divano",
+    ],
   },
   {
     id: "studio_scrittura",
     label: "Studio, carta e strumenti di scrittura",
-    wordIds: ["libro", "carta", "penna", "quaderno", "gomma", "diploma", "archivio", "scuola"],
+    wordIds: [
+      "libro",
+      "carta",
+      "penna",
+      "quaderno",
+      "gomma",
+      "diploma",
+      "archivio",
+      "scuola",
+      "pagina",
+      "matita",
+      "inchiostro",
+      "atlante",
+    ],
   },
   {
     id: "cucina_tavola",
     label: "Cucina tradizionale e convivialità a tavola",
-    wordIds: ["pizza", "pasta", "pane", "vino", "carne", "salame", "ricetta", "ristorante", "simposio"],
+    wordIds: [
+      "pizza",
+      "pasta",
+      "pane",
+      "vino",
+      "carne",
+      "salame",
+      "ricetta",
+      "ristorante",
+      "simposio",
+      "marmellata",
+      "cappuccino",
+      "sandwich",
+      "sciroppo",
+      "zafferano",
+      "albicocca",
+      "melanzana",
+      "cotone",
+    ],
+  },
+  {
+    id: "abbigliamento_moda",
+    label: "Abbigliamento, tessuti e accessori",
+    wordIds: [
+      "vestito",
+      "scarpa",
+      "cappello",
+      "pigiama",
+      "bikini",
+      "jeans",
+      "giubba",
+      "cotone",
+      "ombrello",
+      "pantaloni",
+      "mancia",
+      "cappella",
+    ],
+  },
+  {
+    id: "tecnologia_innovazione",
+    label: "Scienza moderna, telecomunicazioni e tecnologia",
+    wordIds: [
+      "robot",
+      "laser",
+      "pixel",
+      "meme",
+      "spam",
+      "bluetooth",
+      "telefono",
+      "fotografia",
+      "semaforo",
+      "autobus",
+      "bicicletta",
+      "automobile",
+      "algoritmo",
+      "calcolo",
+    ],
   },
   {
     id: "natura_elementi",
     label: "Fenomeni atmosferici e forze della natura",
-    wordIds: ["vulcano", "monsone", "aurora", "tramontana", "clima", "canicola", "orizzonte", "mondo"],
+    wordIds: [
+      "vulcano",
+      "monsone",
+      "aurora",
+      "tramontana",
+      "clima",
+      "canicola",
+      "orizzonte",
+      "mondo",
+      "scirocco",
+      "eco",
+      "malaria",
+    ],
   },
   {
     id: "emozioni_mente",
     label: "Psiche umana, passioni e moti dell'anima",
-    wordIds: ["coraggio", "pazienza", "entusiasmo", "follia", "genio", "talento", "sogno", "fantasia", "desiderio", "estasi", "capriccio"],
+    wordIds: [
+      "coraggio",
+      "pazienza",
+      "entusiasmo",
+      "follia",
+      "genio",
+      "talento",
+      "sogno",
+      "fantasia",
+      "desiderio",
+      "estasi",
+      "capriccio",
+      "magari",
+    ],
   },
   {
     id: "conflitto_difesa",
     label: "Conflitti, armi e dinamiche di guerra",
-    wordIds: ["guerra", "prigione", "vendetta", "disastro", "labirinto", "pace"],
+    wordIds: [
+      "guerra",
+      "prigione",
+      "vendetta",
+      "disastro",
+      "labirinto",
+      "pace",
+      "boicottaggio",
+      "assassino",
+      "ammiraglio",
+      "arsenale",
+      "barbaro",
+    ],
   },
   {
     id: "economia_scambi",
     label: "Economia monetaria, credito e mercati",
-    wordIds: ["moneta", "soldo", "pecunia", "capitale", "finanza", "usura", "ipoteca", "tassa", "miseria"],
+    wordIds: [
+      "moneta",
+      "soldo",
+      "pecunia",
+      "capitale",
+      "finanza",
+      "usura",
+      "ipoteca",
+      "tassa",
+      "miseria",
+      "dollaro",
+      "denaro",
+      "stipendio",
+      "bonus",
+      "credito",
+      "fallimento",
+      "tariffa",
+      "salario",
+      "mancia",
+    ],
+  },
+  {
+    id: "viaggio_mezzi",
+    label: "Viaggi, mezzi di trasporto e scoperte",
+    wordIds: [
+      "viaggio",
+      "bussola",
+      "pellegrino",
+      "molo",
+      "porto",
+      "nave",
+      "valigia",
+      "albergo",
+      "mappa",
+      "autobus",
+      "bicicletta",
+      "automobile",
+      "garage",
+      "semaforo",
+      "darsena",
+      "atlante",
+    ],
   },
 ];
 
@@ -459,6 +779,61 @@ export function buildOptimizedGraph(words: WordEntry[]): WordEntry[] {
       ...word,
       relatedWords: validConnections,
     });
+  }
+
+  // 4. Garanzia finale di raggiungibilità BFS totale
+  const resultMap = new Map(result.map((w) => [w.id, w]));
+  function getBFSVisited(rootId: string) {
+    const visited = new Set<string>();
+    const q = [rootId];
+    visited.add(rootId);
+    while (q.length > 0) {
+      const cur = q.shift()!;
+      const w = resultMap.get(cur);
+      if (!w) continue;
+      for (const rel of w.relatedWords) {
+        if (!visited.has(rel)) {
+          visited.add(rel);
+          q.push(rel);
+        }
+      }
+    }
+    return visited;
+  }
+
+  if (result.length > 0) {
+    let visited = getBFSVisited(result[0].id);
+    let bridgeIters = 0;
+    while (visited.size < result.length && bridgeIters < 100) {
+      bridgeIters++;
+      let bestPair: [WordEntry, WordEntry] | null = null;
+      let bestScore = -1;
+
+      for (const uId of visited) {
+        const uWord = resultMap.get(uId)!;
+        for (const vWord of result) {
+          if (visited.has(vWord.id)) continue;
+          const aff = calculateWordAffinity(uWord, vWord);
+          let s = aff ? aff.score : 0;
+          if (uWord.category === vWord.category) s += 2.0;
+          if (s > bestScore) {
+            bestScore = s;
+            bestPair = [uWord, vWord];
+          }
+        }
+      }
+
+      if (!bestPair) {
+        const unvisitedWord = result.find((w) => !visited.has(w.id))!;
+        bestPair = [result[0], unvisitedWord];
+      }
+
+      const [uWord, vWord] = bestPair;
+      if (!uWord.relatedWords.includes(vWord.id)) uWord.relatedWords.push(vWord.id);
+      if (!vWord.relatedWords.includes(uWord.id)) vWord.relatedWords.push(uWord.id);
+
+      visited = getBFSVisited(result[0].id);
+    }
   }
 
   return result;

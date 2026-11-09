@@ -237,10 +237,12 @@ export default function ProfileScreen({
     let label = "";
 
     switch (badge.category) {
-      case "words":
-        isUnlocked = wordsDiscovered.length >= badge.req;
-        label = isUnlocked ? "Sbloccato" : `${wordsDiscovered.length}/${badge.req} parole`;
+      case "words": {
+        const req = badge.id === "maestro" ? totalWords : badge.req;
+        isUnlocked = wordsDiscovered.length >= req;
+        label = isUnlocked ? "Sbloccato" : `${wordsDiscovered.length}/${req} parole`;
         break;
+      }
       case "streak":
         isUnlocked = streak >= badge.req;
         label = isUnlocked ? "Sbloccato" : `${streak}/${badge.req} giorni`;
@@ -910,7 +912,9 @@ export default function ProfileScreen({
                       style={[styles.modalBadgeDesc, { color: colors.textSecondary }]}
                       numberOfLines={2}
                     >
-                      {b.desc}
+                      {b.id === "maestro"
+                        ? `Scopri l'intero patrimonio di tutte le ${totalWords} parole`
+                        : b.desc}
                     </Text>
 
                     <View

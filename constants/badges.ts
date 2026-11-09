@@ -57,11 +57,11 @@ export const ALL_BADGES: Badge[] = [
   {
     id: "maestro",
     name: "Maestro della Lingua",
-    desc: "Scopri l'intero patrimonio di tutte le 185 parole",
+    desc: "Scopri l'intero patrimonio di tutte le parole disponibili",
     iconName: "shield",
     iconFamily: "Feather",
     category: "words",
-    req: 185,
+    req: 252,
   },
   {
     id: "costanza",
