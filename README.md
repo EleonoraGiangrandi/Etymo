@@ -1,77 +1,117 @@
 <div align="center">
 
-# 🏛️ Etymo
+<img src="./assets/icon.png" alt="Etymo Logo" width="128" />
+
+# Etymo
 
 **Viaggio alle radici della lingua italiana**
 
 *Un'applicazione mobile open-source per riscoprire l'origine, l'evoluzione e le storie nascoste dietro le parole che usiamo ogni giorno.*
 
-[![Expo](https://img.shields.io/badge/Expo-SDK%2054-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
-[![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Offline First](https://img.shields.io/badge/Architecture-Offline--First-2e7d32?style=for-the-badge)](https://github.com/EleonoraGiangrandi/Etymo)
-[![Open Source](https://img.shields.io/badge/License-MIT-orange?style=for-the-badge)](LICENSE)
+<br/>
+
+> *"I limiti del mio linguaggio sono i confini del mio pensiero. Tutto ciò che io conosco è ciò per cui ho delle parole."*  
+> — **L. Wittgenstein**
 
 <br/>
 
-[Descrizione](#-cosè-etymo) • [Funzionalità](#-funzionalità-principali) • [Grafo Semantico](#-il-grafo-etimologico) • [Architettura](#-architettura-e-stack-tecnologico) • [Installazione](#-guida-allinstallazione) • [Privacy](#-privacy-e-trasparenza) • [English Summary](#-english-summary)
+[![Expo](https://img.shields.io/badge/Expo-SDK%2054-322214?style=for-the-badge&logo=expo&logoColor=D4AF37&labelColor=1A1A1A)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React_Native-0.81-322214?style=for-the-badge&logo=react&logoColor=D4AF37&labelColor=1A1A1A)](https://reactnative.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-322214?style=for-the-badge&logo=typescript&logoColor=D4AF37&labelColor=1A1A1A)](https://www.typescriptlang.org)
+[![Offline First](https://img.shields.io/badge/Architecture-Offline--First-D4AF37?style=for-the-badge&labelColor=322214&color=D4AF37)](https://github.com/EleonoraGiangrandi/Etymo)
+[![Open Source](https://img.shields.io/badge/License-MIT-D4AF37?style=for-the-badge&labelColor=322214&color=D4AF37)](LICENSE)
+
+<br/>
+
+[Descrizione](#cosè-etymo) • [Funzionalità](#funzionalità-principali) • [Grafo Semantico](#2-grafo-etimologico-interattivo--rabbit-hole) • [Design System](#identità-visiva-e-design-system) • [Architettura](#architettura-e-stack-tecnologico) • [Installazione](#guida-allinstallazione) • [Privacy](#privacy-e-trasparenza) • [English Summary](#english-summary)
 
 ---
 
 </div>
 
-## 📖 Cos'è Etymo?
+## Cos'è Etymo?
 
 Ogni parola italiana racchiude secoli di viaggi, trasformazioni e aneddoti: dal greco classico al latino imperiale, dalle corti medievali alle rotte commerciali veneziane e al mondo arabo.
 
 **Etymo** è un'applicazione didattica ed educativa progettata per rendere l'etimologia un'esperienza visiva, coinvolgente e interattiva. Lontana dai dizionari aridi, Etymo unisce **gamification**, **visualizzazione a grafo su larga scala** e il collaudato sistema di ripasso spaziato (**Spaced Repetition System / SRS**) per aiutarti ad arricchire il tuo vocabolario giorno dopo giorno.
 
-> 💡 **Nota sulla lingua**: Etymo è interamente incentrata sulla bellezza della lingua italiana e sulle sue radici storiche. La documentazione principale è redatta in italiano, con un [English Summary](#-english-summary) per la community internazionale di sviluppatori.
+> **Nota sulla lingua**: Etymo è interamente incentrata sulla bellezza della lingua italiana e sulle sue radici storiche. La documentazione principale è redatta in italiano, con un [English Summary](#english-summary) per la community internazionale di sviluppatori.
 
 ---
 
-## ✨ Funzionalità Principali
+## Funzionalità Principali
 
-### 🌅 1. La Parola del Giorno & Notifiche
+| Sezione | Ambito | Tecnologia & Focus |
+| :---: | :--- | :--- |
+| <img src="./assets/images/lens.png" width="30" alt="Parola del Giorno" /> | **Parola del Giorno** | Notifiche locali quotidiane, etimo certificato, curiosità storiche |
+| <img src="./assets/images/map.png" width="30" alt="Grafo Etimologico" /> | **Grafo Interattivo** | Oltre 250 nodi e 1100 archi in simulazione force-directed Canvas 2D |
+| <img src="./assets/images/book.png" width="30" alt="Archivio & SRS" /> | **Archivio & Spaced Repetition** | Metodo SRS a 3 livelli di padronanza per la memoria a lungo termine |
+| <img src="./assets/images/fire-icon.png" width="30" alt="Minigiochi & Gamification" /> | **Minigiochi & Sfide** | Modalità a tempo Blitz, Quiz classico, streak e 12 traguardi sbloccabili |
+
+<br/>
+
+### 1. La Parola del Giorno & Notifiche
 - Ogni giorno una parola selezionata e curata con precisione filologica: radice, lingua d'origine, evoluzione fonetica, curiosità storiche e aneddoti culturali.
 - Promemoria quotidiano configurabile e programmato **al 100% in locale** tramite notifiche del dispositivo (`expo-notifications`), senza profilazione né server esterni.
 
-### 🕸️ 2. Grafo Etimologico Interattivo & "Rabbit Hole"
+### 2. Grafo Etimologico Interattivo & "Rabbit Hole"
 - **Oltre 250 parole** collegate da **più di 1100 archi semantici e storici**.
 - Motore di rendering ad alte prestazioni basato su **HTML5 Canvas 2D + simulazione fisica force-directed**.
 - Esplora collegamenti tra parole che condividono la stessa radice (es. *caput*, *panis*, *skopein*, prefissi arabi *al-*, ecc.) o lo stesso contesto storico (Medicina classica, Teatro greco, Marineria veneziana).
 - **Modalità Rabbit Hole**: naviga all'infinito di parola in parola seguendo fili conduttori etimologici sorprendenti, con prevenzione dei rimbalzi e camera fluida auto-adattiva.
 
-### 🗂️ 3. Archivio Lessicale & Spaced Repetition (SRS)
+### 3. Archivio Lessicale & Spaced Repetition (SRS)
 - **Catalogo categorizzato**: esplora parole per categorie canoniche (Società, Oggetti e Spazi, Arte e Spettacolo, Scienza, Corpo e Mente, Religione e Mito, Cucina, Storia, Natura, Commercio, Viaggio, Guerra).
 - **Filtri e Ricerca Rapida**: trova istantaneamente parole per lemma, lingua d'origine o radice.
 - **Accademia & Flashcard**: metti alla prova le tue conoscenze con schede di ripasso intelligenti. Il sistema SRS traccia il livello di padronanza (Mastery 1-3) per consolidare i termini nella memoria a lungo termine.
 
-### 🎮 4. Minigiochi e Sfide
+### 4. Minigiochi e Sfide
 - **Modalità Blitz**: una corsa contro il tempo per indovinare l'etimologia o il significato corretto.
 - **Quiz Classico**: domande a risposta multipla con feedback immediato e spiegazioni educative.
 - **Parola Casuale**: lasciati sorprendere dalla fortuna per scoprire gemme lessicali inaspettate.
 
-### 🏆 5. Gamification & 12 Traguardi (Badges)
+### 5. Gamification & 12 Traguardi (Badges)
 - Sistema progressivo di sblocco con 12 traguardi dedicati: *Primi Passi*, *Curioso*, *Esploratore*, *Erudito*, *Filologo*, *Maestro della Lingua*, *Serie di Fuoco*, *Costanza*, *Campione Blitz*, *Memoria d'Acciaio*, *Collezionista* e *Poliglotta*.
 - Conteggio della serie di studio quotidiana (streak) con moltiplicatori combo.
 
-### 📱 6. Widget Mascotte per la Schermata Home
-- Widget nativo per Android (`react-native-android-widget`) che mostra la parola del giorno, la sua definizione e la simpatica mascotte di Etymo direttamente sul desktop dello smartphone.
+### 6. Widget Mascotte per la Schermata Home
+
+<div align="center">
+  <img src="./assets/images/mascotte.png" width="96" alt="Mascotte di Etymo" />
+</div>
+
+- **La Mascotte di Etymo**: accompagna l'utente nel percorso di apprendimento, comparendo nei momenti di scoperta lessicale, nei traguardi raggiunti e nel widget di sistema.
+- **Widget Nativo per Android** (`react-native-android-widget`): mostra la parola del giorno, la sua definizione e la mascotte direttamente sul desktop dello smartphone.
 
 ---
 
-## 🔒 Filosofia Offline-First & Privacy
+## Filosofia Offline-First & Privacy
 
 Etymo è costruita con una forte etica di rispetto per l'utente:
-- 📱 **Zero Dati Personali Raccolti**: Nessun obbligo di registrazione o creazione account.
-- 💾 **Memoria Locale Protetta**: Tutti i progressi, i punteggi, i badge, le note e le preferenze risiedono unicamente nello storage locale (`AsyncStorage`).
-- 🔄 **Esportazione & Backup JSON**: Pieno controllo e sovranità sui tuoi dati. Puoi esportare o ripristinare il tuo intero profilo con un semplice copia-incolla JSON.
-- ☁️ **Sincronizzazione Dinamica Trasparente**: L'integrazione con Supabase è opzionale e utilizzata unicamente in sola lettura per aggiornare il dizionario etimologico con nuovi termini.
+- **Zero Dati Personali Raccolti**: Nessun obbligo di registrazione o creazione account.
+- **Memoria Locale Protetta**: Tutti i progressi, i punteggi, i badge, le note e le preferenze risiedono unicamente nello storage locale (`AsyncStorage`).
+- **Esportazione & Backup JSON**: Pieno controllo e sovranità sui tuoi dati. Puoi esportare o ripristinare il tuo intero profilo con un semplice copia-incolla JSON.
+- **Sincronizzazione Dinamica Trasparente**: L'integrazione con Supabase è opzionale e utilizzata unicamente in sola lettura per aggiornare il dizionario etimologico con nuovi termini.
 
 ---
 
-## 🛠️ Architettura e Stack Tecnologico
+## Identità Visiva e Design System
+
+L'estetica di Etymo si ispira ai codici manoscritti rinascimentali e alla tradizione tipografica italiana, reinterpretati per l'esperienza mobile con toni caldi e texture riposanti:
+
+| Token / Elemento | Valore Esadecimale | Ruolo Visivo & Applicazione |
+| :--- | :---: | :--- |
+| **Parchment** (Sfondo) | `#FDFCF8` | Superficie primaria ispirata alla carta pergamena |
+| **Deep Ink** (Inchiostro) | `#322214` | Testo primario e titolazioni ad alto contrasto |
+| **Classic Gold** (Accento) | `#D4AF37` | Riflessi dorati, badge sbloccati e stati attivi |
+| **Dark Gold** (Bordi) | `#B8860B` | Finiture e cornici degli elementi nobilitati |
+| **Terra di Siena** (Secondario) | `#6B5B4E` | Etimi secondari, note fonetiche e didascalie |
+| **Font Serif** | *Georgia / Serif* | Lemmi storici, radici etimologiche e citazioni |
+| **Font Sans-Serif** | *System Sans* | Interfaccia utente, controlli interattivi e metadati |
+
+---
+
+## Architettura e Stack Tecnologico
 
 ```
 Etymo/
@@ -114,7 +154,7 @@ Etymo/
 
 ---
 
-## 🚀 Guida all'Installazione
+## Guida all'Installazione
 
 ### Prerequisiti
 - [Node.js](https://nodejs.org/) (versione 18 o superiore consigliata)
@@ -154,7 +194,7 @@ npx expo start
 
 ---
 
-## 🧪 Qualità del Codice & Test
+## Qualità del Codice & Test
 
 Il progetto include strumenti per verificare l'integrità dei dati e la correttezza del codice:
 
@@ -170,13 +210,13 @@ Il progetto include strumenti per verificare l'integrità dei dati e la corrette
 
 ---
 
-## 📜 Privacy e Trasparenza
+## Privacy e Trasparenza
 
 Etymo è trasparente per principio. Per consultare l'informativa completa sul trattamento dei dati e sui permessi locali, visualizza il file [`PRIVACY_POLICY.md`](file:///c:/Users/lenovo/Desktop/Ele/projects/Etymo-main/PRIVACY_POLICY.md).
 
 ---
 
-## 🌐 English Summary
+## English Summary
 
 **Etymo** is an open-source mobile application built with React Native and Expo SDK 54 dedicated to exploring the origins, history, and etymology of the Italian language.
 
@@ -198,7 +238,7 @@ npx expo start
 
 ---
 
-## 📬 Feedback & Contributi
+## Feedback & Contributi
 
 Hai suggerimenti su nuove parole da aggiungere, radici etimologiche da approfondire o miglioramenti al codice?
 - Apri una [Issue](https://github.com/EleonoraGiangrandi/Etymo/issues) o invia una Pull Request!
